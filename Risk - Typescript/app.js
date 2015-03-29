@@ -189,6 +189,17 @@ var Nation = (function () {
         return true;
     };
 
+    Nation.prototype.addRandomCardIfApplicable = function () {
+        if (this.cardGainedThisTurn !== true) {
+            this.cards[0, getRand(0, 2)] += 1;
+
+            for (var i = 0; i < 10; i++) {
+                console.log(getRand(0, 2));
+            }
+            this.cardGainedThisTurn = true;
+        }
+    };
+
     Nation.prototype.handInCards = function () {
         if ((this.cards[0] >= 1) && (this.cards[1] >= 1) && (this.cards[2] >= 1)) {
             this.cards[0] -= 1;
@@ -205,6 +216,7 @@ var Nation = (function () {
                 }
             }
         }
+        this.cardGainedThisTurn = false;
     };
     return Nation;
 })();
@@ -221,7 +233,6 @@ var AI = (function (_super) {
     AI.prototype.assignStartOfTurnArmies = function (game) {
         while (this.armiesToPlace > 0) {
             this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
-            console.log(this.territories);
             this.armiesToPlace -= 1;
         }
 
@@ -427,6 +438,8 @@ var Game = (function () {
             if (aArmy === 0) {
                 this.deselectTerritories();
             } else if (bArmy === 0) {
+                this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
+
                 this.aSelectedTerritory.armyCount -= aArmy;
 
                 aArmy -= 1;
@@ -460,7 +473,6 @@ var Game = (function () {
                         if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
                             that.moveArmies(that.armyUsageMode);
                         } else {
-                            console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
                             that.attack(that.armyUsageMode);
                         }
                     }
@@ -498,8 +510,6 @@ var Game = (function () {
                 that.armyUsageMode = 1;
                 document.getElementById("army-usage-mode").innerHTML = "Entire Army";
             }
-
-            console.log(event.keyCode);
 
             if ((event.keyCode === 50) || (event.keyCode === 98)) {
                 that.armyUsageMode = 0.5;

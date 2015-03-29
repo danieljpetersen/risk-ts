@@ -217,6 +217,7 @@ class Nation {
     territories: Array<Territory>;
     armiesToPlace: number;
     cards: Array<number>;
+    cardGainedThisTurn: boolean;
    
     constructor(name: string, color: Color, index: number) {
         this.name = name;
@@ -237,6 +238,17 @@ class Nation {
         return true;
     }
 
+    addRandomCardIfApplicable() {
+        if (this.cardGainedThisTurn !== true) {
+            this.cards[0, getRand(0, 2)] += 1;
+
+            for (var i = 0; i < 10; i++) {
+                console.log(getRand(0, 2));
+            }
+            this.cardGainedThisTurn = true;
+        }
+    }
+
     handInCards() {
         if ((this.cards[0] >= 1) && (this.cards[1] >= 1) && (this.cards[2] >= 1)) {
             this.cards[0] -= 1;
@@ -255,6 +267,7 @@ class Nation {
                 }
             }
         }
+        this.cardGainedThisTurn = false;
     }
 }
 
@@ -271,7 +284,6 @@ class AI extends Nation {
     private assignStartOfTurnArmies(game: Game) {
         while (this.armiesToPlace > 0) {
             this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
-            console.log(this.territories);
             this.armiesToPlace -= 1;
         }
 
@@ -500,10 +512,11 @@ class Game {
 
             //attacker wins!
             else if (bArmy === 0) {
-                //penalty of 1 for taking over new territory
+                this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
 
                 this.aSelectedTerritory.armyCount -= aArmy;
 
+                //penalty of 1 for taking over new territory
                 aArmy -= 1
                 this.bSelectedTerritory.armyCount = aArmy;
                 this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
@@ -538,7 +551,6 @@ class Game {
                             that.moveArmies(that.armyUsageMode);
                         }
                         else {
-                            console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
                             that.attack(that.armyUsageMode);
                         }
                     }
@@ -582,7 +594,6 @@ class Game {
                 document.getElementById("army-usage-mode").innerHTML = "Entire Army";
             }
 
-            console.log(event.keyCode);
             //2
             if ((event.keyCode === 50) || (event.keyCode === 98)) {
                 that.armyUsageMode = 0.5;
