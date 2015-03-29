@@ -54,8 +54,9 @@ var Territory = (function () {
     }
     Territory.prototype.wasClicked = function (point) {
         for (var i = 0; i < this.pixels.length; i++) {
-            if (this.pixels[i] == point)
+            if ((this.pixels[i].x === point.x) && (this.pixels[i].y === point.y)) {
                 return true;
+            }
         }
         return false;
     };
@@ -86,11 +87,9 @@ var RiskMap = (function () {
         this.territories = new Array();
     }
     RiskMap.prototype.territoryAtPoint = function (point) {
-        for (var i = 0; i < this.continents.length; i++) {
-            for (var j = 0; j < this.continents[i].territories.length; j++) {
-                if (this.continents[i].territories[j].wasClicked(point))
-                    return this.continents[i].territories[j];
-            }
+        for (var i = 0; i < this.territories.length; i++) {
+            if (this.territories[i].wasClicked(point))
+                return this.territories[i];
         }
         return false;
     };
@@ -138,10 +137,29 @@ var Nation = (function () {
         this.color = color;
         this.index = index;
         this.territories = new Array();
+        this.armiesToPlace = 0;
+
         this.cards = new Array();
-        this.armiesToPlace = new Array();
+        for (var i = 0; i < 3; i++) {
+            this.cards.push(0);
+        }
     }
     Nation.prototype.handInCards = function () {
+        if ((this.cards[0] >= 1) && (this.cards[1] >= 1) && (this.cards[2] >= 1)) {
+            this.cards[0] -= 1;
+            this.cards[1] -= 1;
+            this.cards[2] -= 1;
+
+            this.armiesToPlace += 15;
+        } else {
+            for (var i = 0; i < this.cards.length; i++) {
+                if (this.cards[i] >= 3) {
+                    this.cards[i] -= 3;
+
+                    this.armiesToPlace += 7;
+                }
+            }
+        }
     };
     return Nation;
 })();
@@ -162,6 +180,8 @@ var Game = (function () {
 
         this.assignInitialTerritories();
         this.assignInitialArmies();
+
+        this.bindEvents();
     }
     Game.prototype.assignInitialTerritories = function () {
         var territoryIndexes = new Array(this.map.territories.length);
@@ -221,6 +241,24 @@ var Game = (function () {
     };
 
     Game.prototype.calculateIncome = function (nation) {
+        var BASE_INCOME = 3;
+        var ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES = 7;
+        nation.armiesToPlace = BASE_INCOME;
+        nation.armiesToPlace += nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES;
+    };
+
+    Game.prototype.bindEvents = function () {
+        var that = this;
+        this.mapDisplay.canvas.addEventListener("click", function (event) {
+            var rect = that.mapDisplay.canvas.getBoundingClientRect();
+            var x = event.pageX - rect.left;
+            var y = event.pageY - rect.top;
+
+            var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
+            if (territory) {
+                that.mapDisplay.fillPixels(territory.pixels, new Color(0, 0, 0));
+            }
+        }, false);
     };
     return Game;
 })();
