@@ -1,4 +1,29 @@
-﻿class Point {
+﻿//temporary -- need to replace with good random num generator
+function getRand(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffleArray(array) {
+    var counter = array.length, temp, index;
+
+    // While there are elements in the array
+    while (counter > 0) {
+        // Pick a random index
+        index = Math.floor(Math.random() * counter);
+
+        // Decrease counter by 1
+        counter--;
+
+        // And swap the last element with it
+        temp = array[counter];
+        array[counter] = array[index];
+        array[index] = temp;
+    }
+
+    return array;
+}
+
+class Point {
     x: number;
     y: number;
 
@@ -128,6 +153,21 @@ class MapDisplay {
         } 
         this.context.putImageData(image, 0, 0);
     }
+
+    drawText(territory: Territory) {
+        //to remove any old text
+        this.fillPixels(territory.pixels, territory.color);
+        this.context.fillStyle = this.getTextColor(territory.color);
+        this.context.fillText(territory.armyCount.toString(), territory.position.x, territory.position.y);
+    }
+
+    getTextColor(color: Color): string {
+        var greyscale = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
+        if (greyscale < 186) {
+            return "white";
+        }
+        return "black";
+    }
 }
 
 class Nation {
@@ -152,36 +192,6 @@ class Nation {
     }
 }
 
-declare module "mersenneTwister.js" {
-    var noTypeInfoYet: any; // any var name here really
-    export = noTypeInfoYet;
-}
-
-//temporary -- need to replace with good random num generator
-function getRand(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function shuffleArray(array) {
-    var counter = array.length, temp, index;
-
-    // While there are elements in the array
-    while (counter > 0) {
-        // Pick a random index
-        index = Math.floor(Math.random() * counter);
-
-        // Decrease counter by 1
-        counter--;
-
-        // And swap the last element with it
-        temp = array[counter];
-        array[counter] = array[index];
-        array[index] = temp;
-    }
-
-    return array;
-}
-
 class Game {
     map: RiskMap;
     mapDisplay: MapDisplay;
@@ -192,15 +202,16 @@ class Game {
         this.mapDisplay = new MapDisplay();
 
         this.nations = new Array<Nation>(7);
-        this.nations[0] = new Nation("Player 1", new Color(0, 0, 0), 0);
+        this.nations[0] = new Nation("Player 1", new Color(0, 220, 120), 0);
         this.nations[1] = new Nation("Player 2", new Color(255, 255, 255), 1);
-        this.nations[2] = new Nation("Player 3", new Color(255, 0, 0), 2);
-        this.nations[3] = new Nation("Player 4", new Color(0, 255, 0), 3);
+        this.nations[2] = new Nation("Player 3", new Color(140, 0, 0), 2);
+        this.nations[3] = new Nation("Player 4", new Color(0, 202, 10), 3);
         this.nations[4] = new Nation("Player 5", new Color(0, 0, 255), 4);
         this.nations[5] = new Nation("Player 6", new Color(140, 140, 140), 5);
         this.nations[6] = new Nation("Player 7", new Color(150, 150, 0), 6);
 
         this.assignInitialTerritories();
+        this.assignInitialArmies();
     }
 
     private assignInitialTerritories() {
@@ -237,9 +248,24 @@ class Game {
             }
         }
         territory.owner = nation.index;
+        territory.color = nation.color;
         nation.territories.push(territory);
 
         this.mapDisplay.fillPixels(territory.pixels, nation.color);
+    }
+
+    private assignInitialArmies() {
+        var numberOfArmiesToAssign = 20;
+        for (var i = 0; i < numberOfArmiesToAssign; i++) {
+            for (var j = 0; j < this.nations.length; j++) {
+                var randomIndex = getRand(0, this.nations[j].territories.length-1);
+                this.nations[j].territories[randomIndex].armyCount += 1;
+            }
+        }
+
+        for (var i = 0; i < this.map.territories.length; i++) {
+            this.mapDisplay.drawText(this.map.territories[i]);
+        }
     }
 
     endTurn() {
