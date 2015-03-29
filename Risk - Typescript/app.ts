@@ -97,6 +97,14 @@ class Territory {
         }
         return false;
     }
+
+    isNeighbor(territory: Territory): boolean {
+        for (var i = 0; i < this.neighbors.length; i++) {
+            if (this.neighbors[i].name === territory.name)
+                return true;
+        }
+        return false;
+    }
 }
 
 class Continent {
@@ -405,8 +413,10 @@ class Game {
             }
         }
         else if (this.bSelectedTerritory === null) {
-            this.bSelectedTerritory = territory;
-            this.mapDisplay.fillPixels(territory.pixels, selectedColor);
+            if (this.aSelectedTerritory.isNeighbor(territory)) {
+                this.bSelectedTerritory = territory;
+                this.mapDisplay.fillPixels(territory.pixels, selectedColor);
+            }
         }
         else if (this.bSelectedTerritory.name === territory.name) {
             this.mapDisplay.fillPixels(territory.pixels, territory.color);

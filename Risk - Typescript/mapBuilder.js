@@ -78,6 +78,8 @@
             worldMap.continents[europe].color = new Color(200, 0, 0);
             worldMap.continents[europe].incomeBonus = 5;
 
+            //perhaps there are better ways of doing all of this, but I'm only ever going to have
+            //to do it once, and this was the quickest way to get up and running
             var eastUS = that.createTerritory("East U.S.", new Point(214, 206));
             var westUS = that.createTerritory("West U.S.", new Point(117, 178));
             var mexico = that.createTerritory("Mexico", new Point(132, 254));
