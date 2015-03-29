@@ -4,7 +4,6 @@
     __.prototype = b.prototype;
     d.prototype = new __();
 };
-//temporary -- need to replace with good random num generator
 function getRand(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -13,13 +12,10 @@ function shuffleArray(array) {
     var counter = array.length, temp, index;
 
     while (counter > 0) {
-        // Pick a random index
         index = Math.floor(Math.random() * counter);
 
-        // Decrease counter by 1
         counter--;
 
-        // And swap the last element with it
         temp = array[counter];
         array[counter] = array[index];
         array[index] = temp;
@@ -107,6 +103,13 @@ var Continent = (function () {
         }
         return true;
     };
+
+    Continent.prototype.doesNationOwnEntireContinent = function (nation) {
+        if (nation.index === this.territories[0].owner) {
+            return this.hasSingleOwner();
+        }
+        return false;
+    };
     return Continent;
 })();
 
@@ -132,7 +135,6 @@ var MapDisplay = (function () {
         this.context = this.canvas.getContext("2d");
         this.image = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
     }
-    //push to screen
     MapDisplay.prototype.draw = function (game) {
         this.context.putImageData(this.image, 0, 0);
 
@@ -140,7 +142,6 @@ var MapDisplay = (function () {
             this.drawText(game.map.territories[i]);
     };
 
-    //modify image in memory
     MapDisplay.prototype.fillPixels = function (pixels, color) {
         for (var i = 0; i < pixels.length; i++) {
             var index = (pixels[i].x + pixels[i].y * this.canvas.width) * 4;
@@ -214,6 +215,7 @@ var AI = (function (_super) {
     AI.prototype.assignStartOfTurnArmies = function (game) {
         while (this.armiesToPlace > 0) {
             this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
+            console.log(this.territories);
             this.armiesToPlace -= 1;
         }
 
@@ -269,14 +271,15 @@ var Game = (function () {
     };
 
     Game.prototype.changeTerritoryOwner = function (nation, territory) {
-        //remove territory from current owner;
         if (territory.owner !== -1) {
+            var array = [];
+
             for (var i = 0; i < this.nations[territory.owner].territories.length; i++) {
-                if (this.nations[territory.owner].territories[i].name === territory.name) {
-                    this.nations[territory.owner].territories.slice(i, 1);
-                    break;
+                if (this.nations[territory.owner].territories[i].name !== territory.name) {
+                    array.push(this.nations[territory.owner].territories[i]);
                 }
             }
+            this.nations[territory.owner].territories = array;
         }
         territory.owner = nation.index;
         territory.color = nation.color;
@@ -337,6 +340,12 @@ var Game = (function () {
         var ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES = 7;
         nation.armiesToPlace = BASE_INCOME;
         nation.armiesToPlace += Math.floor(nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES);
+
+        for (var i = 0; i < this.map.continents.length; i++) {
+            if (this.map.continents[i].doesNationOwnEntireContinent(nation)) {
+                nation.armiesToPlace += this.map.continents[i].incomeBonus;
+            }
+        }
     };
 
     Game.prototype.handleTerritorySelection = function (territory) {
@@ -382,9 +391,8 @@ var Game = (function () {
         this.syncSelectedTerritoriesWithDOM();
     };
 
-    //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.moveArmies = function (armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10) / 10;
         this.aSelectedTerritory.armyCount -= aArmy;
         this.bSelectedTerritory.armyCount += aArmy;
 
@@ -392,9 +400,8 @@ var Game = (function () {
         this.mapDisplay.draw(this);
     };
 
-    //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.attack = function (armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10) / 10;
         if (aArmy >= 1) {
             var bArmy = this.bSelectedTerritory.armyCount;
 
@@ -409,11 +416,9 @@ var Game = (function () {
                 }
             }
 
-            //attacker loses!
             if (aArmy === 0) {
                 this.deselectTerritories();
             } else if (bArmy === 0) {
-                //penalty of 1 for taking over new territory
                 this.aSelectedTerritory.armyCount -= (aArmy + 1);
                 this.bSelectedTerritory.armyCount = aArmy;
                 this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
@@ -427,7 +432,6 @@ var Game = (function () {
     Game.prototype.bindEvents = function () {
         var that = this;
 
-        //right click
         this.mapDisplay.canvas.oncontextmenu = function (e) {
             e.preventDefault();
 
@@ -449,7 +453,6 @@ var Game = (function () {
 
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
-                //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
                     if (territory.owner === 0) {
                         var armiesToPlace = 1;
@@ -457,7 +460,6 @@ var Game = (function () {
                             armiesToPlace = 10;
                         }
 
-                        //ensure we're not giving the player more armies than they have available
                         armiesToPlace = Math.min(armiesToPlace, that.nations[0].armiesToPlace);
 
                         territory.armyCount += armiesToPlace;
@@ -467,7 +469,6 @@ var Game = (function () {
                         that.syncArmiesToAssignWithDOM();
                     }
                 } else {
-                    //don't execute if we clicked on territory not belonging to us and we have nothing selected
                     if ((that.aSelectedTerritory === null) && (territory.owner !== 0)) {
                     } else {
                         that.handleTerritorySelection(territory);
@@ -477,14 +478,14 @@ var Game = (function () {
         }, false);
 
         document.onkeydown = function (event) {
-            //enter
             if (event.keyCode === 13) {
+                that.deselectTerritories();
+
                 if (that.nations[0].armiesToPlace === 0) {
                     that.endTurn();
                 }
             }
 
-            //1
             if ((event.keyCode === 49) || (event.keyCode === 97)) {
                 that.armyUsageMode = 1;
                 document.getElementById("army-usage-mode").innerHTML = "Entire Army";
@@ -492,13 +493,11 @@ var Game = (function () {
 
             console.log(event.keyCode);
 
-            //2
             if ((event.keyCode === 50) || (event.keyCode === 98)) {
                 that.armyUsageMode = 0.5;
                 document.getElementById("army-usage-mode").innerHTML = "Half Army";
             }
 
-            //3
             if ((event.keyCode === 51) || (event.keyCode === 99)) {
                 that.armyUsageMode = 0.3;
                 document.getElementById("army-usage-mode").innerHTML = "1/3rd Army";
@@ -520,4 +519,3 @@ window.onload = function () {
         var game = new Game(map);
     });
 };
-//# sourceMappingURL=app.js.map

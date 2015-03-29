@@ -132,6 +132,13 @@ class Continent {
         }
         return true;
     }
+
+    doesNationOwnEntireContinent(nation: Nation): boolean {
+        if (nation.index === this.territories[0].owner) {
+            return this.hasSingleOwner();
+        }
+        return false;
+    }
 }
 
 class RiskMap {
@@ -258,6 +265,7 @@ class AI extends Nation {
     private assignStartOfTurnArmies(game: Game) {
         while (this.armiesToPlace > 0) {
             this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
+            console.log(this.territories);
             this.armiesToPlace -= 1;
         }
 
@@ -325,12 +333,14 @@ class Game {
     private changeTerritoryOwner(nation: Nation, territory: Territory) {
         //remove territory from current owner;
         if (territory.owner !== -1) {
+            var array = [];
+
             for (var i = 0; i < this.nations[territory.owner].territories.length; i++) {
-                if (this.nations[territory.owner].territories[i].name === territory.name) {
-                    this.nations[territory.owner].territories.slice(i, 1);
-                    break;
+                if (this.nations[territory.owner].territories[i].name !== territory.name) {
+                    array.push(this.nations[territory.owner].territories[i]);
                 }
             }
+            this.nations[territory.owner].territories = array;
         }
         territory.owner = nation.index;
         territory.color = nation.color;
@@ -392,6 +402,12 @@ class Game {
         var ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES = 7;
         nation.armiesToPlace = BASE_INCOME;
         nation.armiesToPlace += Math.floor(nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES);           
+
+        for (var i = 0; i < this.map.continents.length; i++) {
+            if (this.map.continents[i].doesNationOwnEntireContinent(nation)) {
+                nation.armiesToPlace += this.map.continents[i].incomeBonus;
+            }
+        }
     }
 
     handleTerritorySelection(territory: Territory) {
@@ -443,7 +459,7 @@ class Game {
     
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     moveArmies(armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10)/10;
         this.aSelectedTerritory.armyCount -= aArmy;
         this.bSelectedTerritory.armyCount += aArmy;
 
@@ -453,7 +469,7 @@ class Game {
     
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     attack(armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode*10)/10;
         if (aArmy >= 1) {
             var bArmy = this.bSelectedTerritory.armyCount;
 
@@ -544,6 +560,8 @@ class Game {
         document.onkeydown = function (event) {
             //enter
             if (event.keyCode === 13) {
+                that.deselectTerritories(); 
+
                 if (that.nations[0].armiesToPlace === 0) {
                     that.endTurn();
                 }

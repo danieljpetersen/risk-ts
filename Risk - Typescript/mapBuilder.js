@@ -4,9 +4,6 @@
         this.context = this.canvas.getContext("2d");
         this.imageData = null;
     }
-    //the raw map file has one unique color per territory
-    //each territory gets assigned an xy position which correlates to a pixel with one of these unique colors
-    //for each territory we loop through the map image collecting all pixels associated with that territory (ie: that have that unique color)
     MapBuilder.prototype.assignPixels = function (territory) {
         var pixelData = this.context.getImageData(territory.position.x, territory.position.y, 1, 1);
         var pixel = pixelData.data;
@@ -78,8 +75,6 @@
             worldMap.continents[europe].color = new Color(200, 0, 0);
             worldMap.continents[europe].incomeBonus = 5;
 
-            //perhaps there are better ways of doing all of this, but I'm only ever going to have
-            //to do it once, and this was the quickest way to get up and running
             var eastUS = that.createTerritory("East U.S.", new Point(214, 206));
             var westUS = that.createTerritory("West U.S.", new Point(117, 178));
             var mexico = that.createTerritory("Mexico", new Point(132, 254));
@@ -224,4 +219,3 @@
     };
     return MapBuilder;
 })();
-//# sourceMappingURL=mapBuilder.js.map
