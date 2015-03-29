@@ -292,7 +292,11 @@ var Game = (function () {
         if (this.aSelectedTerritory === null) {
             document.getElementById("output-text").innerHTML = "No Territory Selected";
         } else {
-            document.getElementById("output-text").innerHTML = this.aSelectedTerritory.name;
+            var text = this.aSelectedTerritory.name;
+            if (this.bSelectedTerritory !== null) {
+                text += ", " + this.bSelectedTerritory.name;
+            }
+            document.getElementById("output-text").innerHTML = text + " Selected";
         }
     };
 
@@ -306,12 +310,15 @@ var Game = (function () {
     Game.prototype.handleTerritorySelection = function (territory) {
         if (this.aSelectedTerritory === null) {
             this.aSelectedTerritory = territory;
-        } else if (this.bSelectedTerritory === null) {
-            this.bSelectedTerritory = territory;
         } else if (this.aSelectedTerritory.name === territory.name) {
             this.aSelectedTerritory = null;
             this.bSelectedTerritory = null;
+        } else if (this.bSelectedTerritory === null) {
+            this.bSelectedTerritory = territory;
         } else if (this.bSelectedTerritory.name === territory.name) {
+            this.bSelectedTerritory = null;
+        } else {
+            this.aSelectedTerritory = null;
             this.bSelectedTerritory = null;
         }
         this.syncSelectedTerritoriesWithDOM();
