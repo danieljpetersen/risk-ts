@@ -59,6 +59,7 @@ var RiskMap = (function () {
     function RiskMap(name) {
         this.name = name;
         this.continents = new Array();
+        this.territories = new Array();
     }
     RiskMap.prototype.territoryAtPoint = function (point) {
         for (var i = 0; i < this.continents.length; i++) {
@@ -92,12 +93,111 @@ var MapDisplay = (function () {
     return MapDisplay;
 })();
 
+var Nation = (function () {
+    function Nation(name, color, index) {
+        this.name = name;
+        this.color = color;
+        this.index = index;
+        this.territories = new Array();
+        this.cards = new Array();
+        this.armiesToPlace = new Array();
+    }
+    Nation.prototype.handInCards = function () {
+    };
+    return Nation;
+})();
+
+//temporary -- need to replace with good random num generator
+function getRand(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffleArray(array) {
+    var counter = array.length, temp, index;
+
+    while (counter > 0) {
+        // Pick a random index
+        index = Math.floor(Math.random() * counter);
+
+        // Decrease counter by 1
+        counter--;
+
+        // And swap the last element with it
+        temp = array[counter];
+        array[counter] = array[index];
+        array[index] = temp;
+    }
+
+    return array;
+}
+
+var Game = (function () {
+    function Game(map) {
+        this.map = map;
+        this.mapDisplay = new MapDisplay();
+
+        this.nations = new Array(7);
+        this.nations[0] = new Nation("Player 1", new Color(0, 0, 0), 0);
+        this.nations[1] = new Nation("Player 2", new Color(255, 255, 255), 1);
+        this.nations[2] = new Nation("Player 3", new Color(255, 0, 0), 2);
+        this.nations[3] = new Nation("Player 4", new Color(0, 255, 0), 3);
+        this.nations[4] = new Nation("Player 5", new Color(0, 0, 255), 4);
+        this.nations[5] = new Nation("Player 6", new Color(140, 140, 140), 5);
+        this.nations[6] = new Nation("Player 7", new Color(150, 150, 0), 6);
+
+        this.assignInitialTerritories();
+    }
+    Game.prototype.assignInitialTerritories = function () {
+        var territoryIndexes = new Array(this.map.territories.length);
+        for (var i = 0; i < territoryIndexes.length; i++) {
+            territoryIndexes[i] = i;
+        }
+
+        shuffleArray(territoryIndexes);
+
+        var loop = true;
+        while (loop) {
+            for (var i = 0; i < this.nations.length; i++) {
+                var territory = this.map.territories[territoryIndexes[0]];
+                this.changeTerritoryOwner(this.nations[i], territory);
+
+                territoryIndexes.shift();
+                if (territoryIndexes.length === 0) {
+                    loop = false;
+                    break;
+                }
+            }
+        }
+    };
+
+    Game.prototype.changeTerritoryOwner = function (nation, territory) {
+        //remove territory from current owner;
+        if (territory.owner !== -1) {
+            for (var i = 0; i < this.nations[territory.owner].territories.length; i++) {
+                if (this.nations[territory.owner].territories[i].name === territory.name) {
+                    this.nations[territory.owner].territories.slice(i, 1);
+                    break;
+                }
+            }
+        }
+        territory.owner = nation.index;
+        nation.territories.push(territory);
+
+        this.mapDisplay.fillPixels(territory.pixels, nation.color);
+    };
+
+    Game.prototype.endTurn = function () {
+    };
+
+    Game.prototype.calculateIncome = function (nation) {
+    };
+    return Game;
+})();
+
 window.onload = function () {
     var mapBuilder = new MapBuilder();
     mapBuilder.worldMap(function (map) {
-        var mapDisplay = new MapDisplay();
-        for (var i = 0; i < map.continents[0].territories.length; i++)
-            mapDisplay.fillPixels(map.continents[0].territories[i].pixels, new Color(20, 20, 20));
+        var game = new Game(map);
     });
 };
 //# sourceMappingURL=app.js.map

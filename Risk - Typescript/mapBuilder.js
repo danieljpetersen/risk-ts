@@ -90,7 +90,7 @@
             var argentina = that.createTerritory("Argentina", new Point(300, 510));
             var peru = that.createTerritory("Peru", new Point(252, 414));
             var ukraine = that.createTerritory("Ukraine", new Point(688, 114));
-            var spainFrance = that.createTerritory("Spain / France", new Point(538, 117));
+            var spainFrance = that.createTerritory("Spain / France", new Point(538, 177));
             var ukraine = that.createTerritory("Ukraine", new Point(688, 114));
             var greenland = that.createTerritory("Greenland", new Point(440, 33));
             var iceland = that.createTerritory("Iceland", new Point(507, 79));
@@ -165,6 +165,12 @@
             worldMap.continents[australia].territories.push(easternAustralia);
             worldMap.continents[australia].territories.push(newGuinea);
             worldMap.continents[australia].territories.push(indonesia);
+
+            for (var i = 0; i < worldMap.continents.length; i++) {
+                for (var j = 0; j < worldMap.continents[i].territories.length; j++) {
+                    worldMap.territories.push(worldMap.continents[i].territories[j]);
+                }
+            }
 
             onComplete(worldMap);
         };
