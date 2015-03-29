@@ -72,6 +72,7 @@ var Territory = (function () {
         this.color = new Color(0, 0, 0, 0);
         this.armyCount = 0;
         this.owner = -1;
+        this.neighbors = new Array();
     }
     Territory.prototype.wasClicked = function (point) {
         for (var i = 0; i < this.pixels.length; i++) {
@@ -327,7 +328,7 @@ var Game = (function () {
         var BASE_INCOME = 3;
         var ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES = 7;
         nation.armiesToPlace = BASE_INCOME;
-        nation.armiesToPlace += nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES;
+        nation.armiesToPlace += Math.floor(nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES);
     };
 
     Game.prototype.handleTerritorySelection = function (territory) {
@@ -368,6 +369,7 @@ var Game = (function () {
             this.mapDisplay.fillPixels(this.bSelectedTerritory.pixels, this.bSelectedTerritory.color);
             this.bSelectedTerritory = null;
         }
+        this.syncSelectedTerritoriesWithDOM();
     };
 
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
@@ -383,7 +385,7 @@ var Game = (function () {
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.attack = function (armyUsage) {
         var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
-        if (aArmy > 1) {
+        if (aArmy >= 1) {
             var bArmy = this.bSelectedTerritory.armyCount;
 
             while ((aArmy > 0) && (bArmy > 0)) {
@@ -437,12 +439,16 @@ var Game = (function () {
 
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
+                //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
                     if (territory.owner === 0) {
                         var armiesToPlace = 1;
                         if (that.shiftKeyPressed) {
                             armiesToPlace = 10;
                         }
+
+                        //ensure we're not giving the player more armies than they have available
+                        armiesToPlace = Math.min(armiesToPlace, that.nations[0].armiesToPlace);
 
                         territory.armyCount += armiesToPlace;
                         that.nations[0].armiesToPlace -= armiesToPlace;
@@ -451,7 +457,11 @@ var Game = (function () {
                         that.syncArmiesToAssignWithDOM();
                     }
                 } else {
-                    that.handleTerritorySelection(territory);
+                    //don't execute if we clicked on territory not belonging to us and we have nothing selected
+                    if ((that.aSelectedTerritory === null) && (territory.owner !== 0)) {
+                    } else {
+                        that.handleTerritorySelection(territory);
+                    }
                 }
             }
         }, false);
