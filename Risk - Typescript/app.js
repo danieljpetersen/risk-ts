@@ -201,6 +201,8 @@ var Game = (function () {
         this.map = map;
         this.mapDisplay = new MapDisplay();
         this.shiftKeyPressed = false;
+        this.aSelectedTerritory = null;
+        this.bSelectedTerritory = null;
 
         this.nations = new Array(7);
         this.nations[0] = new Nation("Player 1", new Color(0, 0, 255), 0);
@@ -280,8 +282,18 @@ var Game = (function () {
     };
 
     Game.prototype.syncArmiesToAssignWithDOM = function () {
-        console.log(this.nations[0].armiesToPlace);
-        document.getElementById("output-text").innerHTML = this.nations[0].armiesToPlace.toString() + " Armies Left To Assign";
+        if (this.nations[0].armiesToPlace > 0)
+            document.getElementById("output-text").innerHTML = this.nations[0].armiesToPlace.toString() + " Armies Left To Assign";
+        else
+            this.syncSelectedTerritoriesWithDOM();
+    };
+
+    Game.prototype.syncSelectedTerritoriesWithDOM = function () {
+        if (this.aSelectedTerritory === null) {
+            document.getElementById("output-text").innerHTML = "No Territory Selected";
+        } else {
+            document.getElementById("output-text").innerHTML = this.aSelectedTerritory.name;
+        }
     };
 
     Game.prototype.calculateIncome = function (nation) {
@@ -292,6 +304,17 @@ var Game = (function () {
     };
 
     Game.prototype.handleTerritorySelection = function (territory) {
+        if (this.aSelectedTerritory === null) {
+            this.aSelectedTerritory = territory;
+        } else if (this.bSelectedTerritory === null) {
+            this.bSelectedTerritory = territory;
+        } else if (this.aSelectedTerritory.name === territory.name) {
+            this.aSelectedTerritory = null;
+            this.bSelectedTerritory = null;
+        } else if (this.bSelectedTerritory.name === territory.name) {
+            this.bSelectedTerritory = null;
+        }
+        this.syncSelectedTerritoriesWithDOM();
     };
 
     Game.prototype.bindEvents = function () {

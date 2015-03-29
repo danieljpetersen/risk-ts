@@ -242,11 +242,15 @@ class Game {
     mapDisplay: MapDisplay;
     nations: Array<any>;
     shiftKeyPressed: boolean; 
+    aSelectedTerritory: Territory;
+    bSelectedTerritory: Territory;
 
     constructor(map: RiskMap) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
         this.shiftKeyPressed = false;
+        this.aSelectedTerritory = null;
+        this.bSelectedTerritory = null;
 
         this.nations = new Array(7);
         this.nations[0] = new Nation("Player 1", new Color(0, 0, 255), 0);
@@ -327,8 +331,19 @@ class Game {
     }
 
     private syncArmiesToAssignWithDOM() {
-        console.log(this.nations[0].armiesToPlace);
-        document.getElementById("output-text").innerHTML = this.nations[0].armiesToPlace.toString() + " Armies Left To Assign";
+        if (this.nations[0].armiesToPlace > 0)
+            document.getElementById("output-text").innerHTML = this.nations[0].armiesToPlace.toString() + " Armies Left To Assign";
+        else
+            this.syncSelectedTerritoriesWithDOM();
+    }
+
+    private syncSelectedTerritoriesWithDOM() {
+        if (this.aSelectedTerritory === null) {
+            document.getElementById("output-text").innerHTML = "No Territory Selected";
+        }
+        else {
+            document.getElementById("output-text").innerHTML = this.aSelectedTerritory.name;
+        }
     }
 
     private calculateIncome(nation: Nation) {
@@ -339,7 +354,20 @@ class Game {
     }
 
     handleTerritorySelection(territory: Territory) {
-
+        if (this.aSelectedTerritory === null) {
+            this.aSelectedTerritory = territory;
+        }
+        else if (this.bSelectedTerritory === null) {
+            this.bSelectedTerritory = territory;
+        }
+        else if (this.aSelectedTerritory.name === territory.name) {
+            this.aSelectedTerritory = null;
+            this.bSelectedTerritory = null;
+        }
+        else if (this.bSelectedTerritory.name === territory.name) {
+            this.bSelectedTerritory = null;
+        }
+        this.syncSelectedTerritoriesWithDOM();
     }
 
     private bindEvents() {
