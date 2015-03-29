@@ -291,6 +291,9 @@ var Game = (function () {
         nation.armiesToPlace += nation.territories.length / ADDITIONAL_ARMIES_PER_THIS_MANY_TERRITORIES;
     };
 
+    Game.prototype.handleTerritorySelection = function (territory) {
+    };
+
     Game.prototype.bindEvents = function () {
         var that = this;
         this.mapDisplay.canvas.addEventListener("click", function (event) {
@@ -300,16 +303,22 @@ var Game = (function () {
 
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
-                var armiesToPlace = 1;
-                if (that.shiftKeyPressed) {
-                    armiesToPlace = 10;
+                if (that.nations[0].armiesToPlace > 0) {
+                    if (territory.owner === 0) {
+                        var armiesToPlace = 1;
+                        if (that.shiftKeyPressed) {
+                            armiesToPlace = 10;
+                        }
+
+                        territory.armyCount += armiesToPlace;
+                        that.nations[0].armiesToPlace -= armiesToPlace;
+                        that.mapDisplay.draw(that);
+
+                        that.syncArmiesToAssignWithDOM();
+                    }
+                } else {
+                    that.handleTerritorySelection(territory);
                 }
-
-                territory.armyCount += armiesToPlace;
-                that.nations[0].armiesToPlace -= armiesToPlace;
-                that.mapDisplay.draw(that);
-
-                that.syncArmiesToAssignWithDOM();
             }
         }, false);
 
