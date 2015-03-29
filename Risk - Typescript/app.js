@@ -144,8 +144,10 @@ var MapDisplay = (function () {
     };
 
     MapDisplay.prototype.drawText = function (territory) {
-        this.context.fillStyle = this.getTextColor(territory.color);
-        this.context.fillText(territory.armyCount.toString(), territory.position.x, territory.position.y);
+        if (territory.armyCount > 0) {
+            this.context.fillStyle = this.getTextColor(territory.color);
+            this.context.fillText(territory.armyCount.toString(), territory.position.x, territory.position.y);
+        }
     };
 
     MapDisplay.prototype.getTextColor = function (color) {
@@ -313,7 +315,7 @@ var Game = (function () {
                 text += ", " + this.bSelectedTerritory.name;
 
                 if (this.aSelectedTerritory.owner === this.bSelectedTerritory.owner)
-                    text += " - Right click to move all armies, shift right click to move half";
+                    text += " - Right click to Move";
                 else
                     text += " - Right click to Attack";
             }
@@ -332,8 +334,10 @@ var Game = (function () {
         var selectedColor = new Color(territory.color.r + 50, territory.color.g + 50, territory.color.b + 50);
 
         if (this.aSelectedTerritory === null) {
-            this.mapDisplay.fillPixels(territory.pixels, selectedColor);
-            this.aSelectedTerritory = territory;
+            if (territory.armyCount > 0) {
+                this.mapDisplay.fillPixels(territory.pixels, selectedColor);
+                this.aSelectedTerritory = territory;
+            }
         } else if (this.aSelectedTerritory.name === territory.name) {
             this.aSelectedTerritory = null;
             this.mapDisplay.fillPixels(territory.pixels, territory.color);
@@ -349,25 +353,63 @@ var Game = (function () {
             this.mapDisplay.fillPixels(territory.pixels, territory.color);
             this.bSelectedTerritory = null;
         } else {
-            if (this.aSelectedTerritory !== null) {
-                this.mapDisplay.fillPixels(this.aSelectedTerritory.pixels, this.aSelectedTerritory.color);
-                this.aSelectedTerritory = null;
-            }
-            if (this.bSelectedTerritory !== null) {
-                this.mapDisplay.fillPixels(this.bSelectedTerritory.pixels, this.bSelectedTerritory.color);
-                this.bSelectedTerritory = null;
-            }
+            this.deselectTerritories();
         }
         this.syncSelectedTerritoriesWithDOM();
         this.mapDisplay.draw(this);
     };
 
+    Game.prototype.deselectTerritories = function () {
+        if (this.aSelectedTerritory !== null) {
+            this.mapDisplay.fillPixels(this.aSelectedTerritory.pixels, this.aSelectedTerritory.color);
+            this.aSelectedTerritory = null;
+        }
+        if (this.bSelectedTerritory !== null) {
+            this.mapDisplay.fillPixels(this.bSelectedTerritory.pixels, this.bSelectedTerritory.color);
+            this.bSelectedTerritory = null;
+        }
+    };
+
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.moveArmies = function (armyUsage) {
+        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        this.aSelectedTerritory.armyCount -= aArmy;
+        this.bSelectedTerritory.armyCount += aArmy;
+
+        this.deselectTerritories();
+        this.mapDisplay.draw(this);
     };
 
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.attack = function (armyUsage) {
+        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        if (aArmy > 1) {
+            var bArmy = this.bSelectedTerritory.armyCount;
+
+            while ((aArmy > 0) && (bArmy > 0)) {
+                var roll = getRand(0, 100);
+                if (roll > 50) {
+                    aArmy -= 1;
+                    this.aSelectedTerritory.armyCount -= 1;
+                } else {
+                    bArmy -= 1;
+                    this.bSelectedTerritory.armyCount -= 1;
+                }
+            }
+
+            //attacker loses!
+            if (aArmy === 0) {
+                this.deselectTerritories();
+            } else if (bArmy === 0) {
+                //penalty of 1 for taking over new territory
+                this.aSelectedTerritory.armyCount -= (aArmy + 1);
+                this.bSelectedTerritory.armyCount = aArmy;
+                this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
+                this.deselectTerritories();
+            }
+
+            this.mapDisplay.draw(this);
+        }
     };
 
     Game.prototype.bindEvents = function () {
