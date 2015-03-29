@@ -141,6 +141,7 @@ class MapDisplay {
         this.image = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
     }
 
+    //push to screen
     draw(game: Game) {
         this.context.putImageData(this.image, 0, 0);
     
@@ -148,6 +149,7 @@ class MapDisplay {
             this.drawText(game.map.territories[i]);
     }
 
+    //modify image in memory
     fillPixels(pixels: Array<Point>, color: Color) {
         for (var i = 0; i < pixels.length; i++) {
             var index = (pixels[i].x + pixels[i].y * this.canvas.width)*4;
@@ -186,7 +188,7 @@ class Nation {
         this.color = color;
         this.index = index;
         this.territories = new Array<Territory>();
-        this.armiesToPlace = 0;
+        this.armiesToPlace = 3;
     
         this.cards = new Array<number>();
         for (var i = 0; i < 3; i++) {
@@ -222,10 +224,10 @@ class AI extends Nation {
     }
 
     processAITurn(game: Game) {
-        this.assignInitialArmies(game);
+        this.assignStartOfTurnArmies(game);
     }
 
-    private assignInitialArmies(game: Game) {
+    private assignStartOfTurnArmies(game: Game) {
         while (this.armiesToPlace > 0) {
             this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
             this.armiesToPlace -= 1;
@@ -239,17 +241,19 @@ class Game {
     map: RiskMap;
     mapDisplay: MapDisplay;
     nations: Array<any>;
-    
+    shiftKeyPressed: boolean; 
+
     constructor(map: RiskMap) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
+        this.shiftKeyPressed = false;
 
         this.nations = new Array(7);
-        this.nations[0] = new Nation("Player 1", new Color(0, 220, 120), 0);
+        this.nations[0] = new Nation("Player 1", new Color(0, 0, 255), 0);
         this.nations[1] = new AI("Player 2", new Color(255, 255, 255), 1);
         this.nations[2] = new AI("Player 3", new Color(140, 0, 0), 2);
         this.nations[3] = new AI("Player 4", new Color(0, 202, 10), 3);
-        this.nations[4] = new AI("Player 5", new Color(0, 0, 255), 4);
+        this.nations[4] = new AI("Player 5", new Color(0, 220, 120), 4);
         this.nations[5] = new AI("Player 6", new Color(140, 140, 140), 5);
         this.nations[6] = new AI("Player 7", new Color(150, 150, 0), 6);
         
@@ -319,6 +323,12 @@ class Game {
         }
 
         this.calculateIncome(this.nations[0]);
+        this.syncArmiesToAssignWithDOM();
+    }
+
+    private syncArmiesToAssignWithDOM() {
+        console.log(this.nations[0].armiesToPlace);
+        document.getElementById("output-text").innerHTML = this.nations[0].armiesToPlace.toString() + " Armies Left To Assign";
     }
 
     private calculateIncome(nation: Nation) {
@@ -337,18 +347,33 @@ class Game {
 
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
-                that.mapDisplay.fillPixels(territory.pixels, new Color(0, 0, 0));
+                var armiesToPlace = 1;
+                if (that.shiftKeyPressed) {
+                    armiesToPlace = 10;
+                }
+
+                territory.armyCount += armiesToPlace;
+                that.nations[0].armiesToPlace -= armiesToPlace;
                 that.mapDisplay.draw(that);
+
+                that.syncArmiesToAssignWithDOM();
             }
         }, false);
 
         document.onkeydown = function (event) {
+            //enter
             if (event.keyCode === 13) {
-         //       if (that.nations[0].armiesToPlace === 0) {
+                if (that.nations[0].armiesToPlace === 0) {
                     that.endTurn();
-           //     }
+                }
             }
+
+            that.shiftKeyPressed = event.shiftKey;
         };
+
+        document.onmouseup = function (event) {
+            that.shiftKeyPressed = event.shiftKey;
+        }
     }
 }
 
