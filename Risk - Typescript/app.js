@@ -183,6 +183,12 @@ var Nation = (function () {
             this.cards.push(0);
         }
     }
+    Nation.prototype.isAlive = function () {
+        if (this.territories.length === 0)
+            return false;
+        return true;
+    };
+
     Nation.prototype.handInCards = function () {
         if ((this.cards[0] >= 1) && (this.cards[1] >= 1) && (this.cards[2] >= 1)) {
             this.cards[0] -= 1;
@@ -303,8 +309,10 @@ var Game = (function () {
 
     Game.prototype.endTurn = function () {
         for (var i = 1; i < this.nations.length; i++) {
-            this.calculateIncome(this.nations[i]);
-            this.nations[i].processAITurn(this);
+            if (this.nations[i].isAlive()) {
+                this.calculateIncome(this.nations[i]);
+                this.nations[i].processAITurn(this);
+            }
         }
 
         this.calculateIncome(this.nations[0]);
@@ -419,7 +427,9 @@ var Game = (function () {
             if (aArmy === 0) {
                 this.deselectTerritories();
             } else if (bArmy === 0) {
-                this.aSelectedTerritory.armyCount -= (aArmy + 1);
+                this.aSelectedTerritory.armyCount -= aArmy;
+
+                aArmy -= 1;
                 this.bSelectedTerritory.armyCount = aArmy;
                 this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
                 this.deselectTerritories();
@@ -432,16 +442,27 @@ var Game = (function () {
     Game.prototype.bindEvents = function () {
         var that = this;
 
-        this.mapDisplay.canvas.oncontextmenu = function (e) {
-            e.preventDefault();
+        this.mapDisplay.canvas.oncontextmenu = function (event) {
+            event.preventDefault();
 
-            if (that.aSelectedTerritory !== null) {
-                if (that.bSelectedTerritory !== null) {
-                    if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
-                        that.moveArmies(that.armyUsageMode);
-                    } else {
-                        console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
-                        that.attack(that.armyUsageMode);
+            if (that.nations[0].armiesToPlace > 0) {
+                var rect = that.mapDisplay.canvas.getBoundingClientRect();
+                var x = event.pageX - rect.left;
+                var y = event.pageY - rect.top;
+
+                var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
+                if (territory) {
+                    that.handleHumanArmyPlacement(territory, 10);
+                }
+            } else {
+                if (that.aSelectedTerritory !== null) {
+                    if (that.bSelectedTerritory !== null) {
+                        if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
+                            that.moveArmies(that.armyUsageMode);
+                        } else {
+                            console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
+                            that.attack(that.armyUsageMode);
+                        }
                     }
                 }
             }
@@ -454,20 +475,7 @@ var Game = (function () {
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
                 if (that.nations[0].armiesToPlace > 0) {
-                    if (territory.owner === 0) {
-                        var armiesToPlace = 1;
-                        if (that.shiftKeyPressed) {
-                            armiesToPlace = 10;
-                        }
-
-                        armiesToPlace = Math.min(armiesToPlace, that.nations[0].armiesToPlace);
-
-                        territory.armyCount += armiesToPlace;
-                        that.nations[0].armiesToPlace -= armiesToPlace;
-                        that.mapDisplay.draw(that);
-
-                        that.syncArmiesToAssignWithDOM();
-                    }
+                    that.handleHumanArmyPlacement(territory, 1);
                 } else {
                     if ((that.aSelectedTerritory === null) && (territory.owner !== 0)) {
                     } else {
@@ -509,6 +517,18 @@ var Game = (function () {
         document.onmouseup = function (event) {
             that.shiftKeyPressed = event.shiftKey;
         };
+    };
+
+    Game.prototype.handleHumanArmyPlacement = function (territory, armiesToPlace) {
+        if (territory.owner === 0) {
+            armiesToPlace = Math.min(armiesToPlace, this.nations[0].armiesToPlace);
+
+            territory.armyCount += armiesToPlace;
+            this.nations[0].armiesToPlace -= armiesToPlace;
+            this.mapDisplay.draw(this);
+
+            this.syncArmiesToAssignWithDOM();
+        }
     };
     return Game;
 })();

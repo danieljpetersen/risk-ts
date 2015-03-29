@@ -231,6 +231,12 @@ class Nation {
         }
     }
 
+    isAlive(): boolean {
+        if (this.territories.length === 0)
+            return false;
+        return true;
+    }
+
     handInCards() {
         if ((this.cards[0] >= 1) && (this.cards[1] >= 1) && (this.cards[2] >= 1)) {
             this.cards[0] -= 1;
@@ -364,8 +370,10 @@ class Game {
 
     endTurn() {
         for (var i = 1; i < this.nations.length; i++) {
-            this.calculateIncome(this.nations[i]);
-            this.nations[i].processAITurn(this);
+            if (this.nations[i].isAlive()) {
+                this.calculateIncome(this.nations[i]);
+                this.nations[i].processAITurn(this);
+            }
         }
 
         this.calculateIncome(this.nations[0]);
@@ -493,7 +501,10 @@ class Game {
             //attacker wins!
             else if (bArmy === 0) {
                 //penalty of 1 for taking over new territory
-                this.aSelectedTerritory.armyCount -= (aArmy + 1);
+
+                this.aSelectedTerritory.armyCount -= aArmy;
+
+                aArmy -= 1
                 this.bSelectedTerritory.armyCount = aArmy;
                 this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
                 this.deselectTerritories();
@@ -507,17 +518,29 @@ class Game {
         var that = this;
 
         //right click
-        this.mapDisplay.canvas.oncontextmenu = function (e) {
-            e.preventDefault();
+        this.mapDisplay.canvas.oncontextmenu = function (event) {
+            event.preventDefault();
 
-            if (that.aSelectedTerritory !== null) {
-                if (that.bSelectedTerritory !== null) {
-                    if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
-                        that.moveArmies(that.armyUsageMode);
-                    }
-                    else {
-                        console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
-                        that.attack(that.armyUsageMode);
+            if (that.nations[0].armiesToPlace > 0) {
+                var rect = that.mapDisplay.canvas.getBoundingClientRect();
+                var x = event.pageX - rect.left;
+                var y = event.pageY - rect.top;
+
+                var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
+                if (territory) {
+                    that.handleHumanArmyPlacement(territory, 10);
+                }
+            }
+            else {
+                if (that.aSelectedTerritory !== null) {
+                    if (that.bSelectedTerritory !== null) {
+                        if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
+                            that.moveArmies(that.armyUsageMode);
+                        }
+                        else {
+                            console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
+                            that.attack(that.armyUsageMode);
+                        }
                     }
                 }
             }
@@ -531,21 +554,7 @@ class Game {
             if (territory) {
                 //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
-                    if (territory.owner === 0) {
-                        var armiesToPlace = 1;
-                        if (that.shiftKeyPressed) {
-                            armiesToPlace = 10;
-                        }
-
-                        //ensure we're not giving the player more armies than they have available
-                        armiesToPlace = Math.min(armiesToPlace, that.nations[0].armiesToPlace);
-
-                        territory.armyCount += armiesToPlace;
-                        that.nations[0].armiesToPlace -= armiesToPlace;
-                        that.mapDisplay.draw(that);
-
-                        that.syncArmiesToAssignWithDOM();
-                    }
+                    that.handleHumanArmyPlacement(territory, 1);
                 }
                 else {
                     //don't execute if we clicked on territory not belonging to us and we have nothing selected
@@ -591,6 +600,19 @@ class Game {
 
         document.onmouseup = function (event) {
             that.shiftKeyPressed = event.shiftKey;
+        }
+    }
+
+    handleHumanArmyPlacement(territory: Territory, armiesToPlace: number) {
+        if (territory.owner === 0) {
+            //ensure we're not giving the player more armies than they have available
+            armiesToPlace = Math.min(armiesToPlace, this.nations[0].armiesToPlace);
+
+            territory.armyCount += armiesToPlace;
+            this.nations[0].armiesToPlace -= armiesToPlace;
+            this.mapDisplay.draw(this);
+
+            this.syncArmiesToAssignWithDOM();
         }
     }
 }
