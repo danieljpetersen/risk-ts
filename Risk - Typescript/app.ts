@@ -53,7 +53,7 @@ class Territory {
     //pixels on the map image which belong to this territory
     pixels: Array<Point>;
 
-    //for positioning army count text on canvas
+    //for positioning army count text on canvas (as well as for initializing pixels in MapBuilder)
     position: Point;
 
     color: Color;
@@ -114,9 +114,6 @@ class RiskMap {
     territories: Array<Territory>;
     image: HTMLImageElement;
 
-    //we keep a copy of the original image in order to figure out which territory we clicked
-    originalImage: Array<Array<Color>>;
-
     constructor(name: string) {
         this.name = name;
         this.continents = new Array<Continent>();
@@ -136,33 +133,38 @@ class RiskMap {
 class MapDisplay {
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
+    image: ImageData;
 
     constructor() {
         this.canvas = <HTMLCanvasElement> document.getElementById("canvas");
         this.context = this.canvas.getContext("2d");
+        this.image = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    draw(game: Game) {
+        this.context.putImageData(this.image, 0, 0);
+    
+        for (var i = 0; i < game.map.territories.length; i++)
+            this.drawText(game.map.territories[i]);
     }
 
     fillPixels(pixels: Array<Point>, color: Color) {
-        var image = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
         for (var i = 0; i < pixels.length; i++) {
             var index = (pixels[i].x + pixels[i].y * this.canvas.width)*4;
 
-            image.data[index + 0] = color.r;
-            image.data[index + 1] = color.g;
-            image.data[index + 2] = color.b;
-            image.data[index + 3] = color.a;
-        } 
-        this.context.putImageData(image, 0, 0);
+            this.image.data[index + 0] = color.r;
+            this.image.data[index + 1] = color.g;
+            this.image.data[index + 2] = color.b;
+            this.image.data[index + 3] = color.a;
+        }
     }
 
-    drawText(territory: Territory) {
-        //to remove any old text
-        this.fillPixels(territory.pixels, territory.color);
+    private drawText(territory: Territory) {
         this.context.fillStyle = this.getTextColor(territory.color);
         this.context.fillText(territory.armyCount.toString(), territory.position.x, territory.position.y);
     }
 
-    getTextColor(color: Color): string {
+    private getTextColor(color: Color): string {
         var greyscale = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
         if (greyscale < 186) {
             return "white";
@@ -201,7 +203,7 @@ class Nation {
             this.armiesToPlace += 15;
         }
 
-        else { 
+        else {
             for (var i = 0; i < this.cards.length; i++) {
                 if (this.cards[i] >= 3) {
                     this.cards[i] -= 3;
@@ -213,24 +215,44 @@ class Nation {
     }
 }
 
+class AI extends Nation {
+
+    constructor(name: string, color: Color, index: number) {
+        super(name, color, index);
+    }
+
+    processAITurn(game: Game) {
+        this.assignInitialArmies(game);
+    }
+
+    private assignInitialArmies(game: Game) {
+        while (this.armiesToPlace > 0) {
+            this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
+            this.armiesToPlace -= 1;
+        }
+
+        game.mapDisplay.draw(game);
+    }
+}
+
 class Game {
     map: RiskMap;
     mapDisplay: MapDisplay;
-    nations: Array<Nation>;
+    nations: Array<any>;
     
     constructor(map: RiskMap) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
 
-        this.nations = new Array<Nation>(7);
+        this.nations = new Array(7);
         this.nations[0] = new Nation("Player 1", new Color(0, 220, 120), 0);
-        this.nations[1] = new Nation("Player 2", new Color(255, 255, 255), 1);
-        this.nations[2] = new Nation("Player 3", new Color(140, 0, 0), 2);
-        this.nations[3] = new Nation("Player 4", new Color(0, 202, 10), 3);
-        this.nations[4] = new Nation("Player 5", new Color(0, 0, 255), 4);
-        this.nations[5] = new Nation("Player 6", new Color(140, 140, 140), 5);
-        this.nations[6] = new Nation("Player 7", new Color(150, 150, 0), 6);
-
+        this.nations[1] = new AI("Player 2", new Color(255, 255, 255), 1);
+        this.nations[2] = new AI("Player 3", new Color(140, 0, 0), 2);
+        this.nations[3] = new AI("Player 4", new Color(0, 202, 10), 3);
+        this.nations[4] = new AI("Player 5", new Color(0, 0, 255), 4);
+        this.nations[5] = new AI("Player 6", new Color(140, 140, 140), 5);
+        this.nations[6] = new AI("Player 7", new Color(150, 150, 0), 6);
+        
         this.assignInitialTerritories();
         this.assignInitialArmies();
 
@@ -275,6 +297,7 @@ class Game {
         nation.territories.push(territory);
 
         this.mapDisplay.fillPixels(territory.pixels, nation.color);
+        this.mapDisplay.draw(this);
     }
 
     private assignInitialArmies() {
@@ -286,12 +309,16 @@ class Game {
             }
         }
 
-        for (var i = 0; i < this.map.territories.length; i++) {
-            this.mapDisplay.drawText(this.map.territories[i]);
-        }
+        this.mapDisplay.draw(this);
     }
 
     endTurn() {
+        for (var i = 1; i < this.nations.length; i++) {
+            this.calculateIncome(this.nations[i]);
+            this.nations[i].processAITurn(this);
+        }
+
+        this.calculateIncome(this.nations[0]);
     }
 
     private calculateIncome(nation: Nation) {
@@ -311,8 +338,17 @@ class Game {
             var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
             if (territory) {
                 that.mapDisplay.fillPixels(territory.pixels, new Color(0, 0, 0));
+                that.mapDisplay.draw(that);
             }
         }, false);
+
+        document.onkeydown = function (event) {
+            if (event.keyCode === 13) {
+         //       if (that.nations[0].armiesToPlace === 0) {
+                    that.endTurn();
+           //     }
+            }
+        };
     }
 }
 

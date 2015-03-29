@@ -1,10 +1,12 @@
 ﻿class MapBuilder {
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
+    imageData: any;
 
     constructor() {
         this.canvas = <HTMLCanvasElement> document.getElementById("canvas");
         this.context = this.canvas.getContext("2d");
+        this.imageData = null;
     }
 
     //the raw map file has one unique color per territory
@@ -14,11 +16,10 @@
         var pixelData = this.context.getImageData(territory.position.x, territory.position.y, 1, 1);
         var pixel = pixelData.data;
 
-        var imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
-        for (var i = 0; i < imageData.length; i += 4) {
-            if (pixel[0] === imageData[i + 0]) {
-                if (pixel[1] === imageData[i + 1]) {
-                    if (pixel[2] === imageData[i + 2]) {
+        for (var i = 0; i < this.imageData.length; i += 4) {
+            if (pixel[0] === this.imageData[i + 0]) {
+                if (pixel[1] === this.imageData[i + 1]) {
+                    if (pixel[2] === this.imageData[i + 2]) {
                         var x = (i / 4) % this.canvas.width;
                         var y = Math.floor((i / 4) / this.canvas.width);
                         territory.pixels.push(new Point(x, y));
@@ -44,7 +45,8 @@
             that.canvas.width = worldMap.image.width;
             that.canvas.height = worldMap.image.height;
             that.context.drawImage(worldMap.image, 0, 0);
-
+            that.imageData = that.context.getImageData(0, 0, that.canvas.width, that.canvas.height).data;
+       
             worldMap.continents.push(new Continent());
             var northAmerica = worldMap.continents.length - 1;
             worldMap.continents[northAmerica].name = "North America";
