@@ -44,6 +44,21 @@ class Color {
         this.g = g;
         this.b = b;
         this.a = a;
+
+        if (this.r > 255)
+            this.r = 255;
+        else if (this.r < 0)
+            this.r = 0;
+
+        if (this.g > 255)
+            this.g = 255;
+        else if (this.g < 0)
+            this.g = 0;
+
+        if (this.b > 255)
+            this.b = 255;
+        else if (this.b < 0)
+            this.b = 0;
     }
 }
 
@@ -245,20 +260,24 @@ class Game {
     aSelectedTerritory: Territory;
     bSelectedTerritory: Territory;
 
+    //(0-1):  when attacking / moving, whether to use entire army, 1/2 army, or 1/3rd army
+    armyUsageMode: number;
+
     constructor(map: RiskMap) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
         this.shiftKeyPressed = false;
         this.aSelectedTerritory = null;
         this.bSelectedTerritory = null;
+        this.armyUsageMode = 1;
 
         this.nations = new Array(7);
         this.nations[0] = new Nation("Player 1", new Color(0, 0, 255), 0);
-        this.nations[1] = new AI("Player 2", new Color(255, 255, 255), 1);
+        this.nations[1] = new AI("Player 2", new Color(200, 200, 200), 1);
         this.nations[2] = new AI("Player 3", new Color(140, 0, 0), 2);
         this.nations[3] = new AI("Player 4", new Color(0, 202, 10), 3);
         this.nations[4] = new AI("Player 5", new Color(0, 220, 120), 4);
-        this.nations[5] = new AI("Player 6", new Color(140, 140, 140), 5);
+        this.nations[5] = new AI("Player 6", new Color(0, 140, 140), 5);
         this.nations[6] = new AI("Player 7", new Color(150, 150, 0), 6);
         
         this.assignInitialTerritories();
@@ -345,8 +364,13 @@ class Game {
             var text = this.aSelectedTerritory.name;
             if (this.bSelectedTerritory !== null) {
                 text += ", " + this.bSelectedTerritory.name;
+
+                if (this.aSelectedTerritory.owner === this.bSelectedTerritory.owner)
+                    text += " - Right click to move all armies, shift right click to move half";
+                else
+                    text += " - Right click to Attack";
             }
-            document.getElementById("output-text").innerHTML = text + " Selected";
+            document.getElementById("output-text").innerHTML = text;
         }
     }
 
@@ -358,28 +382,72 @@ class Game {
     }
 
     handleTerritorySelection(territory: Territory) {
+        var selectedColor = new Color(territory.color.r + 50, territory.color.g + 50, territory.color.b + 50);
+        
         if (this.aSelectedTerritory === null) {
+            this.mapDisplay.fillPixels(territory.pixels, selectedColor);
             this.aSelectedTerritory = territory;
         }
         else if (this.aSelectedTerritory.name === territory.name) {
             this.aSelectedTerritory = null;
-            this.bSelectedTerritory = null;
+            this.mapDisplay.fillPixels(territory.pixels, territory.color);
+
+            if (this.bSelectedTerritory !== null) {
+                this.mapDisplay.fillPixels(this.bSelectedTerritory.pixels, this.bSelectedTerritory.color);
+                this.bSelectedTerritory = null;
+            }
         }
         else if (this.bSelectedTerritory === null) {
             this.bSelectedTerritory = territory;
+            this.mapDisplay.fillPixels(territory.pixels, selectedColor);
         }
         else if (this.bSelectedTerritory.name === territory.name) {
+            this.mapDisplay.fillPixels(territory.pixels, territory.color);
             this.bSelectedTerritory = null;
         }
         else {
-            this.aSelectedTerritory = null;
-            this.bSelectedTerritory = null;
+            if (this.aSelectedTerritory !== null) {
+                this.mapDisplay.fillPixels(this.aSelectedTerritory.pixels, this.aSelectedTerritory.color);
+                this.aSelectedTerritory = null;
+            }
+            if (this.bSelectedTerritory !== null) {
+                this.mapDisplay.fillPixels(this.bSelectedTerritory.pixels, this.bSelectedTerritory.color);
+                this.bSelectedTerritory = null;
+            }
         }
-        this.syncSelectedTerritoriesWithDOM();
+        this.syncSelectedTerritoriesWithDOM();        
+        this.mapDisplay.draw(this);
     }
+    
+    //always assumes aSelectedTerritory / bSelectedTerritory are not null
+    moveArmies(armyUsage) {
 
+    }
+    
+    //always assumes aSelectedTerritory / bSelectedTerritory are not null
+    attack(armyUsage) {
+
+    }
+ 
     private bindEvents() {
         var that = this;
+
+        //right click
+        this.mapDisplay.canvas.oncontextmenu = function (e) {
+            e.preventDefault();
+
+            if (that.aSelectedTerritory !== null) {
+                if (that.bSelectedTerritory !== null) {
+                    if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
+                        that.moveArmies(that.armyUsageMode);
+                    }
+                    else {
+                        console.log(that.aSelectedTerritory.owner, that.bSelectedTerritory.owner);
+                        that.attack(that.armyUsageMode);
+                    }
+                }
+            }
+        };
         this.mapDisplay.canvas.addEventListener("click", function (event) {
             var rect = that.mapDisplay.canvas.getBoundingClientRect();
             var x = event.pageX - rect.left;
@@ -413,6 +481,25 @@ class Game {
                 if (that.nations[0].armiesToPlace === 0) {
                     that.endTurn();
                 }
+            }
+
+            //1
+            if ((event.keyCode === 49) || (event.keyCode === 97)) {
+                that.armyUsageMode = 1;
+                document.getElementById("army-usage-mode").innerHTML = "Entire Army";
+            }
+
+            console.log(event.keyCode);
+            //2
+            if ((event.keyCode === 50) || (event.keyCode === 98)) {
+                that.armyUsageMode = 0.5;
+                document.getElementById("army-usage-mode").innerHTML = "Half Army";
+            }
+
+            //3
+            if ((event.keyCode === 51) || (event.keyCode === 99)) {
+                that.armyUsageMode = 0.3;
+                document.getElementById("army-usage-mode").innerHTML = "1/3rd Army";
             }
 
             that.shiftKeyPressed = event.shiftKey;
