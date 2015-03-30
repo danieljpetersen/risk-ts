@@ -71,6 +71,9 @@ class Territory {
     //for positioning army count text on canvas (as well as for initializing pixels in MapBuilder)
     position: Point;
 
+    //needs to know what continent it's part of for the AI to easily determine continent border territories
+    continentName: string;
+
     color: Color;
 
     armyCount: number;
@@ -83,6 +86,7 @@ class Territory {
         this.name = name;
         this.pixels = new Array<Point>();
         this.position = point;
+        this.continentName = "";
         this.color = new Color(0, 0, 0, 0);
         this.armyCount = 0;
         this.owner = -1;
@@ -118,9 +122,12 @@ class Continent {
     //if one nation owns entirety of continent, this is the troop bonus they get per turn
     incomeBonus: number;
 
+    borderTerritories: Array<Territory>;
+
     constructor() {
         this.name = "";
         this.territories = new Array<Territory>();
+        this.borderTerritories = new Array<Territory>();
         this.color = new Color(0, 0, 0, 0);
         this.incomeBonus = 0;
     }
@@ -138,6 +145,17 @@ class Continent {
             return this.hasSingleOwner();
         }
         return false;
+    }
+
+    calculateBorderTerritories() {
+        for (var i = 0; i < this.territories.length; i++) {
+            for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                if (this.territories[i].neighbors[j].continentName !== this.name) {
+                    this.borderTerritories.push(this.territories[i].neighbors[j]);
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -241,10 +259,6 @@ class Nation {
     addRandomCardIfApplicable() {
         if (this.cardGainedThisTurn !== true) {
             this.cards[0, getRand(0, 2)] += 1;
-
-            for (var i = 0; i < 10; i++) {
-                console.log(getRand(0, 2));
-            }
             this.cardGainedThisTurn = true;
         }
     }
@@ -272,22 +286,120 @@ class Nation {
 }
 
 class AI extends Nation {
+    goalContinent: Continent;
+    territoriesOwnedInGoalContinent: Array<Territory>;
 
     constructor(name: string, color: Color, index: number) {
         super(name, color, index);
+        this.goalContinent = null;
+        this.territoriesOwnedInGoalContinent = null;
     }
 
     processAITurn(game: Game) {
+        this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
+        this.ensureCardEarnedThisTurn();
+    }
+
+    private determineGoalContinent(game: Game) {
+        var validContinents = new Array<boolean>(game.map.continents.length)
+        var armyCount = new Array<number>(game.map.continents.length);
+        for (var i = 0; i < armyCount.length; i++) {
+            validContinents[i] = false;
+            armyCount[i] = 0;
+        }
+
+        for (var i = 0; i < game.map.continents.length; i++) {
+            for (var j = 0; j < game.map.continents[i].territories.length; j++) {
+                if (game.map.continents[i].territories[j].owner !== this.index) {
+                    armyCount[i] -= game.map.continents[i].territories[j].armyCount;
+                }
+                else {
+                    armyCount[i] += game.map.continents[i].territories[j].armyCount;
+                    validContinents[i] = true;
+                }
+            }
+        }
+
+        var best = 0;
+        for (var i = 1; i < armyCount.length; i++) {
+            if (((armyCount[i] >= armyCount[best]) && (validContinents[i])) || (validContinents[best] !== true)) {
+                best = i;
+            }
+        }
+
+        this.goalContinent = game.map.continents[best];        
+    }
+
+
+    private getTerritoriesOwnedInGoalContinent(game: Game): Array<Territory> {
+        var array = new Array<Territory>();
+        for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            if (this.goalContinent.territories[i].owner === this.index) {
+                array.push(this.goalContinent.territories[i]);
+            }
+        }
+        return array;
     }
 
     private assignStartOfTurnArmies(game: Game) {
-        while (this.armiesToPlace > 0) {
-            this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
-            this.armiesToPlace -= 1;
-        }
+        this.ensureBorderTerritoriesAreCovered(game);
+        this.assignArmiesToGoalContinent(game);
 
         game.mapDisplay.draw(game);
+    }
+
+    ensureBorderTerritoriesAreCovered(game: Game) {
+        for (var i = 0; i < game.map.continents.length; i++) {
+            if (game.map.continents[i].doesNationOwnEntireContinent(this)) {
+                for (var j = 0; j < game.map.continents[i].borderTerritories.length; j++) {
+                    var territory = game.map.continents[i].borderTerritories[j];
+                    
+                    if (territory.owner === this.index) {
+                        //we want our borders to have at least 20 armies
+                        while (territory.armyCount < 20) {
+                            this.assignArmy(territory);
+                            if (this.armiesToPlace === 0)
+                                return;
+                        }
+
+                        //we want our borders to have at least x (?) times more armies than the surrounding territories
+                        for (var k = 0; k < territory.neighbors.length; k++) {
+                            if (territory.neighbors[k].continentName !== game.map.continents[i].name) {
+                                if (territory.neighbors[k].owner !== this.index) {
+                                    while (territory.neighbors[k].armyCount * 1.3 > territory.armyCount) {
+                                        this.assignArmy(territory);
+                                        if (this.armiesToPlace === 0)
+                                            return;
+                                    }
+                                }
+                            }
+                        } 
+                    }
+                }
+            }
+        }
+    }
+
+    assignArmiesToGoalContinent(game: Game) {
+        this.territoriesOwnedInGoalContinent = this.getTerritoriesOwnedInGoalContinent(game);
+        while (this.armiesToPlace > 0) {
+            var territory = this.territoriesOwnedInGoalContinent[0, getRand(0, this.territoriesOwnedInGoalContinent.length - 1)];
+            this.assignArmy(territory);
+        }
+    }
+
+    assignArmy(territory: Territory) {
+        territory.armyCount += 1;
+        this.armiesToPlace -= 1;
+    }
+
+    ensureCardEarnedThisTurn() {
+
+    }
+
+    moveArmiesToGoalContinent() {
+
     }
 }
 
@@ -491,16 +603,14 @@ class Game {
     attack(armyUsage) {
         var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode*10)/10;
         if (aArmy >= 1) {
-            var bArmy = this.bSelectedTerritory.armyCount;
 
-            while ((aArmy > 0) && (bArmy > 0)) {
+            while ((aArmy > 0) && (this.bSelectedTerritory.armyCount > 0)) {
                 var roll = getRand(0, 100);
                 if (roll > 50) {
                     aArmy -= 1;
                     this.aSelectedTerritory.armyCount -= 1;
                 }
                 else {
-                    bArmy -= 1;
                     this.bSelectedTerritory.armyCount -= 1;
                 }
             }
@@ -511,7 +621,7 @@ class Game {
             }
 
             //attacker wins!
-            else if (bArmy === 0) {
+            else if (this.bSelectedTerritory.armyCount === 0) {
                 this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
 
                 this.aSelectedTerritory.armyCount -= aArmy;
@@ -541,7 +651,7 @@ class Game {
 
                 var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
                 if (territory) {
-                    that.handleHumanArmyPlacement(territory, 10);
+                    that.handleHumanArmyPlacement(territory, 100);
                 }
             }
             else {
@@ -602,7 +712,7 @@ class Game {
 
             //3
             if ((event.keyCode === 51) || (event.keyCode === 99)) {
-                that.armyUsageMode = 0.3;
+                that.armyUsageMode = 0.333333333333333333333;
                 document.getElementById("army-usage-mode").innerHTML = "1/3rd Army";
             }
 

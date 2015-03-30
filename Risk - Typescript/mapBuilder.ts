@@ -79,7 +79,7 @@
 
             worldMap.continents.push(new Continent());
             var europe = worldMap.continents.length - 1;
-            worldMap.continents[europe].name = "Australia";
+            worldMap.continents[europe].name = "Europe";
             worldMap.continents[europe].color = new Color(200, 0, 0);
             worldMap.continents[europe].incomeBonus = 5;
 
@@ -99,7 +99,6 @@
             var peru = that.createTerritory("Peru", new Point(252, 414));
             var ukraine = that.createTerritory("Ukraine", new Point(688, 114));
             var spainFrance = that.createTerritory("Spain / France", new Point(538, 177));
-            var ukraine = that.createTerritory("Ukraine", new Point(688, 114));
             var greenland = that.createTerritory("Greenland", new Point(440, 33));
             var iceland = that.createTerritory("Iceland", new Point(507, 79));
             var uk = that.createTerritory("UK", new Point(550, 129));
@@ -159,7 +158,7 @@
             westAfrica.neighbors = [eastAfrica, northwestAfrica, southAfrica];
             middleEast.neighbors = [eastAfrica, egypt, greece, ukraine, india, afghanistan];
             afghanistan.neighbors = [ukraine, ural, china, india, middleEast];
-            ural.neighbors = [siberia, china, afghanistan];
+            ural.neighbors = [siberia, china, afghanistan, ukraine];
             siberia.neighbors = [ural, china, mongolia, irkutsk, yutusk];
             china.neighbors = [southAsia, india, afghanistan, siberia, ural, mongolia];
             india.neighbors = [middleEast, afghanistan, china, southAsia];
@@ -221,9 +220,13 @@
             for (var i = 0; i < worldMap.continents.length; i++) {
                 for (var j = 0; j < worldMap.continents[i].territories.length; j++) {
                     worldMap.territories.push(worldMap.continents[i].territories[j]);
+                    worldMap.continents[i].territories[j].continentName = worldMap.continents[i].name;
                 }
             }
 
+            for (var i = 0; i < worldMap.continents.length; i++) {
+                worldMap.continents[i].calculateBorderTerritories();
+            }
             onComplete(worldMap);
         };
     }

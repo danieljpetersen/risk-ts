@@ -65,6 +65,7 @@ var Territory = (function () {
         this.name = name;
         this.pixels = new Array();
         this.position = point;
+        this.continentName = "";
         this.color = new Color(0, 0, 0, 0);
         this.armyCount = 0;
         this.owner = -1;
@@ -93,6 +94,7 @@ var Continent = (function () {
     function Continent() {
         this.name = "";
         this.territories = new Array();
+        this.borderTerritories = new Array();
         this.color = new Color(0, 0, 0, 0);
         this.incomeBonus = 0;
     }
@@ -109,6 +111,17 @@ var Continent = (function () {
             return this.hasSingleOwner();
         }
         return false;
+    };
+
+    Continent.prototype.calculateBorderTerritories = function () {
+        for (var i = 0; i < this.territories.length; i++) {
+            for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                if (this.territories[i].neighbors[j].continentName !== this.name) {
+                    this.borderTerritories.push(this.territories[i].neighbors[j]);
+                    break;
+                }
+            }
+        }
     };
     return Continent;
 })();
@@ -192,10 +205,6 @@ var Nation = (function () {
     Nation.prototype.addRandomCardIfApplicable = function () {
         if (this.cardGainedThisTurn !== true) {
             this.cards[0, getRand(0, 2)] += 1;
-
-            for (var i = 0; i < 10; i++) {
-                console.log(getRand(0, 2));
-            }
             this.cardGainedThisTurn = true;
         }
     };
@@ -225,18 +234,108 @@ var AI = (function (_super) {
     __extends(AI, _super);
     function AI(name, color, index) {
         _super.call(this, name, color, index);
+        this.goalContinent = null;
+        this.territoriesOwnedInGoalContinent = null;
     }
     AI.prototype.processAITurn = function (game) {
+        this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
+        this.ensureCardEarnedThisTurn();
+    };
+
+    AI.prototype.determineGoalContinent = function (game) {
+        var validContinents = new Array(game.map.continents.length);
+        var armyCount = new Array(game.map.continents.length);
+        for (var i = 0; i < armyCount.length; i++) {
+            validContinents[i] = false;
+            armyCount[i] = 0;
+        }
+
+        for (var i = 0; i < game.map.continents.length; i++) {
+            for (var j = 0; j < game.map.continents[i].territories.length; j++) {
+                if (game.map.continents[i].territories[j].owner !== this.index) {
+                    armyCount[i] -= game.map.continents[i].territories[j].armyCount;
+                } else {
+                    armyCount[i] += game.map.continents[i].territories[j].armyCount;
+                    validContinents[i] = true;
+                }
+            }
+        }
+
+        var best = 0;
+        for (var i = 1; i < armyCount.length; i++) {
+            if (((armyCount[i] >= armyCount[best]) && (validContinents[i])) || (validContinents[best] !== true)) {
+                best = i;
+            }
+        }
+
+        this.goalContinent = game.map.continents[best];
+    };
+
+    AI.prototype.getTerritoriesOwnedInGoalContinent = function (game) {
+        var array = new Array();
+        for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            if (this.goalContinent.territories[i].owner === this.index) {
+                array.push(this.goalContinent.territories[i]);
+            }
+        }
+        return array;
     };
 
     AI.prototype.assignStartOfTurnArmies = function (game) {
-        while (this.armiesToPlace > 0) {
-            this.territories[0, getRand(0, this.territories.length - 1)].armyCount += 1;
-            this.armiesToPlace -= 1;
-        }
+        this.ensureBorderTerritoriesAreCovered(game);
+        this.assignArmiesToGoalContinent(game);
 
         game.mapDisplay.draw(game);
+    };
+
+    AI.prototype.ensureBorderTerritoriesAreCovered = function (game) {
+        for (var i = 0; i < game.map.continents.length; i++) {
+            if (game.map.continents[i].doesNationOwnEntireContinent(this)) {
+                for (var j = 0; j < game.map.continents[i].borderTerritories.length; j++) {
+                    var territory = game.map.continents[i].borderTerritories[j];
+
+                    if (territory.owner === this.index) {
+                        while (territory.armyCount < 20) {
+                            this.assignArmy(territory);
+                            if (this.armiesToPlace === 0)
+                                return;
+                        }
+
+                        for (var k = 0; k < territory.neighbors.length; k++) {
+                            if (territory.neighbors[k].continentName !== game.map.continents[i].name) {
+                                if (territory.neighbors[k].owner !== this.index) {
+                                    while (territory.neighbors[k].armyCount * 1.3 > territory.armyCount) {
+                                        this.assignArmy(territory);
+                                        if (this.armiesToPlace === 0)
+                                            return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    AI.prototype.assignArmiesToGoalContinent = function (game) {
+        this.territoriesOwnedInGoalContinent = this.getTerritoriesOwnedInGoalContinent(game);
+        while (this.armiesToPlace > 0) {
+            var territory = this.territoriesOwnedInGoalContinent[0, getRand(0, this.territoriesOwnedInGoalContinent.length - 1)];
+            this.assignArmy(territory);
+        }
+    };
+
+    AI.prototype.assignArmy = function (territory) {
+        territory.armyCount += 1;
+        this.armiesToPlace -= 1;
+    };
+
+    AI.prototype.ensureCardEarnedThisTurn = function () {
+    };
+
+    AI.prototype.moveArmiesToGoalContinent = function () {
     };
     return AI;
 })(Nation);
@@ -422,22 +521,19 @@ var Game = (function () {
     Game.prototype.attack = function (armyUsage) {
         var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10) / 10;
         if (aArmy >= 1) {
-            var bArmy = this.bSelectedTerritory.armyCount;
-
-            while ((aArmy > 0) && (bArmy > 0)) {
+            while ((aArmy > 0) && (this.bSelectedTerritory.armyCount > 0)) {
                 var roll = getRand(0, 100);
                 if (roll > 50) {
                     aArmy -= 1;
                     this.aSelectedTerritory.armyCount -= 1;
                 } else {
-                    bArmy -= 1;
                     this.bSelectedTerritory.armyCount -= 1;
                 }
             }
 
             if (aArmy === 0) {
                 this.deselectTerritories();
-            } else if (bArmy === 0) {
+            } else if (this.bSelectedTerritory.armyCount === 0) {
                 this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
 
                 this.aSelectedTerritory.armyCount -= aArmy;
@@ -465,7 +561,7 @@ var Game = (function () {
 
                 var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
                 if (territory) {
-                    that.handleHumanArmyPlacement(territory, 10);
+                    that.handleHumanArmyPlacement(territory, 100);
                 }
             } else {
                 if (that.aSelectedTerritory !== null) {
@@ -517,7 +613,7 @@ var Game = (function () {
             }
 
             if ((event.keyCode === 51) || (event.keyCode === 99)) {
-                that.armyUsageMode = 0.3;
+                that.armyUsageMode = 0.333333333333333333333;
                 document.getElementById("army-usage-mode").innerHTML = "1/3rd Army";
             }
 

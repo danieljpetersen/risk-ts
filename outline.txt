@@ -67,6 +67,47 @@ AI : Nation
 		-  brute force pathfinding?
 		-  will attempt to capture territory in continent owned entirely by opponent if it has the numbers to do so
 		-  will periodically reevaluate to see if it's still worth pursuing the current continent
+
+
+		goalContinent: Continent;
+
+		processAITurn() {
+			if (this.goalContinent === null) {
+				this.goalContinent = determineGoalContinent();
+			}
+		}
+
+		determineGoalContinent() {
+			//loop through all territories we own
+			//
+		}
+
+		getTerritoriesOwnedInGoalContinent(): Array<Continent> {
+			...
+		}
+
+
+		assignArmiesAtStartOfTurn() {
+			territories = getTerritoriesOwnedInGoalContinent();
+			for (var i = 0; i < armiesToPlace.length; i++) {
+				territories[random] += 1;
+			}
+		}
+
+		ensureCardEarnedThisTurn() {
+			...
+		}
+
+
+
+
+
+
+
+
+
+
+
 Game
 	Map	
 	MapBuilder (temp?)
