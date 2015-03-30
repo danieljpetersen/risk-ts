@@ -208,9 +208,10 @@
             worldMap.continents[australia].territories.push(indonesia);
 
             for (var i = 0; i < worldMap.continents.length; i++) {
+                worldMap.continents[i].index = i;
                 for (var j = 0; j < worldMap.continents[i].territories.length; j++) {
                     worldMap.territories.push(worldMap.continents[i].territories[j]);
-                    worldMap.continents[i].territories[j].continentName = worldMap.continents[i].name;
+                    worldMap.continents[i].territories[j].continentIndex = i;
                 }
             }
 

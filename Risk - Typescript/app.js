@@ -65,7 +65,7 @@ var Territory = (function () {
         this.name = name;
         this.pixels = new Array();
         this.position = point;
-        this.continentName = "";
+        this.continentIndex = -1;
         this.color = new Color(0, 0, 0, 0);
         this.armyCount = 0;
         this.owner = -1;
@@ -96,6 +96,7 @@ var Continent = (function () {
         this.territories = new Array();
         this.borderTerritories = new Array();
         this.color = new Color(0, 0, 0, 0);
+        this.index = -1;
         this.incomeBonus = 0;
     }
     Continent.prototype.hasSingleOwner = function () {
@@ -116,7 +117,7 @@ var Continent = (function () {
     Continent.prototype.calculateBorderTerritories = function () {
         for (var i = 0; i < this.territories.length; i++) {
             for (var j = 0; j < this.territories[i].neighbors.length; j++) {
-                if (this.territories[i].neighbors[j].continentName !== this.name) {
+                if (this.territories[i].neighbors[j].continentIndex !== this.index) {
                     this.borderTerritories.push(this.territories[i].neighbors[j]);
                     break;
                 }
@@ -236,10 +237,13 @@ var AI = (function (_super) {
         _super.call(this, name, color, index);
         this.goalContinent = null;
         this.territoriesOwnedInGoalContinent = null;
+        this.continentsWeOwn = null;
     }
     AI.prototype.processAITurn = function (game) {
+        this.calculateContinentsOwned(game);
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
+        this.moveArmiesToGoalContinent(game);
         this.ensureCardEarnedThisTurn();
     };
 
@@ -291,7 +295,7 @@ var AI = (function (_super) {
 
     AI.prototype.ensureBorderTerritoriesAreCovered = function (game) {
         for (var i = 0; i < game.map.continents.length; i++) {
-            if (game.map.continents[i].doesNationOwnEntireContinent(this)) {
+            if (this.doWeOwnContinent(game.map.continents[i].territories[0])) {
                 for (var j = 0; j < game.map.continents[i].borderTerritories.length; j++) {
                     var territory = game.map.continents[i].borderTerritories[j];
 
@@ -303,7 +307,7 @@ var AI = (function (_super) {
                         }
 
                         for (var k = 0; k < territory.neighbors.length; k++) {
-                            if (territory.neighbors[k].continentName !== game.map.continents[i].name) {
+                            if (territory.neighbors[k].continentIndex !== game.map.continents[i].index) {
                                 if (territory.neighbors[k].owner !== this.index) {
                                     while (territory.neighbors[k].armyCount * 1.3 > territory.armyCount) {
                                         this.assignArmy(territory);
@@ -333,9 +337,44 @@ var AI = (function (_super) {
     };
 
     AI.prototype.ensureCardEarnedThisTurn = function () {
+        if (this.cardGainedThisTurn !== true) {
+            for (var i = 0; i < this.territories.length; i++) {
+            }
+        }
     };
 
-    AI.prototype.moveArmiesToGoalContinent = function () {
+    AI.prototype.moveArmiesToGoalContinent = function (game) {
+        for (var i = 0; i < this.territories.length; i++) {
+            if (this.territories[i].continentIndex !== this.goalContinent.index) {
+                if (this.doWeOwnContinent(this.territories[i]) !== true) {
+                    if (this.territories[i].armyCount > 0) {
+                        for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                            if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
+                                game.handleTerritorySelection(this.territories[i]);
+                                game.handleTerritorySelection(this.territories[i].neighbors[j]);
+                                if (this.territories[i].neighbors[j].owner === this.index) {
+                                    game.moveArmies(1);
+                                } else {
+                                    game.attack(1);
+                                }
+                                game.deselectTerritories();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    AI.prototype.doWeOwnContinent = function (territory) {
+        return this.continentsWeOwn[territory.continentIndex];
+    };
+
+    AI.prototype.calculateContinentsOwned = function (game) {
+        this.continentsWeOwn = new Array(game.map.continents.length);
+        for (var i = 0; i < this.continentsWeOwn.length; i++) {
+            this.continentsWeOwn[i] = game.map.continents[i].doesNationOwnEntireContinent(this);
+        }
     };
     return AI;
 })(Nation);
