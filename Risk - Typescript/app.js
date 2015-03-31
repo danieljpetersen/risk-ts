@@ -168,9 +168,10 @@ var MapDisplay = (function () {
     };
 
     MapDisplay.prototype.drawText = function (territory) {
-        if (territory.armyCount > 0) {
+        if (territory.armyCount >= 1) {
             this.context.fillStyle = this.getTextColor(territory.color);
-            this.context.fillText(territory.armyCount.toString(), territory.position.x, territory.position.y);
+            var armyCount = Math.round(territory.armyCount * 10) / 10;
+            this.context.fillText(armyCount.toString(), territory.position.x, territory.position.y);
         }
     };
 
@@ -180,6 +181,20 @@ var MapDisplay = (function () {
             return "white";
         }
         return "black";
+    };
+
+    MapDisplay.prototype.getCanvasPosition = function (event) {
+        var rect = this.canvas.getBoundingClientRect();
+        var x = event.pageX - rect.left;
+        var y = event.pageY - rect.top;
+
+        var windowLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        var windowTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        x -= windowLeft;
+        y -= windowTop;
+
+        return new Point(Math.round(x), Math.round(y));
     };
     return MapDisplay;
 })();
@@ -476,19 +491,21 @@ var Game = (function () {
     };
 
     Game.prototype.syncSelectedTerritoriesWithDOM = function () {
-        if (this.aSelectedTerritory === null) {
-            document.getElementById("output-text").innerHTML = "No Territory Selected";
-        } else {
-            var text = this.aSelectedTerritory.name;
-            if (this.bSelectedTerritory !== null) {
-                text += ", " + this.bSelectedTerritory.name;
+        if (this.nations[0].armiesToPlace === 0) {
+            if (this.aSelectedTerritory === null) {
+                document.getElementById("output-text").innerHTML = "No Territory Selected";
+            } else {
+                var text = this.aSelectedTerritory.name;
+                if (this.bSelectedTerritory !== null) {
+                    text += ", " + this.bSelectedTerritory.name;
 
-                if (this.aSelectedTerritory.owner === this.bSelectedTerritory.owner)
-                    text += " - Right click to Move";
-                else
-                    text += " - Right click to Attack";
+                    if (this.aSelectedTerritory.owner === this.bSelectedTerritory.owner)
+                        text += " - Right click to Move";
+                    else
+                        text += " - Right click to Attack";
+                }
+                document.getElementById("output-text").innerHTML = text;
             }
-            document.getElementById("output-text").innerHTML = text;
         }
     };
 
@@ -549,7 +566,7 @@ var Game = (function () {
     };
 
     Game.prototype.moveArmies = function (armyUsage) {
-        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10) / 10;
+        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
         this.aSelectedTerritory.armyCount -= aArmy;
         this.bSelectedTerritory.armyCount += aArmy;
 
@@ -558,7 +575,7 @@ var Game = (function () {
     };
 
     Game.prototype.attack = function (armyUsage) {
-        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode * 10) / 10;
+        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
         if (aArmy >= 1) {
             while ((aArmy > 0) && (this.bSelectedTerritory.armyCount > 0)) {
                 var roll = getRand(0, 100);
@@ -594,11 +611,9 @@ var Game = (function () {
             event.preventDefault();
 
             if (that.nations[0].armiesToPlace > 0) {
-                var rect = that.mapDisplay.canvas.getBoundingClientRect();
-                var x = event.pageX - rect.left;
-                var y = event.pageY - rect.top;
+                var position = that.mapDisplay.getCanvasPosition(event);
 
-                var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
+                var territory = that.map.territoryAtPoint(position);
                 if (territory) {
                     that.handleHumanArmyPlacement(territory, 100);
                 }
@@ -615,11 +630,9 @@ var Game = (function () {
             }
         };
         this.mapDisplay.canvas.addEventListener("click", function (event) {
-            var rect = that.mapDisplay.canvas.getBoundingClientRect();
-            var x = event.pageX - rect.left;
-            var y = event.pageY - rect.top;
+            var position = that.mapDisplay.getCanvasPosition(event);
 
-            var territory = that.map.territoryAtPoint(new Point(Math.round(x), Math.round(y)));
+            var territory = that.map.territoryAtPoint(position);
             if (territory) {
                 if (that.nations[0].armiesToPlace > 0) {
                     that.handleHumanArmyPlacement(territory, 1);
