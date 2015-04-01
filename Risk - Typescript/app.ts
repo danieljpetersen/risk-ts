@@ -74,6 +74,9 @@ class Territory {
     //needs to know what continent it's part of for the AI to easily determine continent border territories
     continentIndex: number;
 
+    //the index of this territory in game.territories;  just because it helps out slightly with pathfinding
+    index: number;
+
     color: Color;
 
     armyCount: number;
@@ -303,165 +306,6 @@ class Nation {
     }
 }
 
-class AI extends Nation {
-    goalContinent: Continent;
-    territoriesOwnedInGoalContinent: Array<Territory>;
-    continentsWeOwn: Array<boolean>;
-
-    constructor(name: string, color: Color, index: number) {
-        super(name, color, index);
-        this.goalContinent = null;
-        this.territoriesOwnedInGoalContinent = null;
-        this.continentsWeOwn = null;
-    }
-
-    processAITurn(game: Game) {
-        this.calculateContinentsOwned(game);
-        this.determineGoalContinent(game);
-        this.assignStartOfTurnArmies(game);
-        this.moveArmiesToGoalContinent(game);
-        this.ensureCardEarnedThisTurn();
-    }
-
-    private determineGoalContinent(game: Game) {
-        var validContinents = new Array<boolean>(game.map.continents.length)
-        var armyCount = new Array<number>(game.map.continents.length);
-        for (var i = 0; i < armyCount.length; i++) {
-            validContinents[i] = false;
-            armyCount[i] = 0;
-        }
-
-        for (var i = 0; i < game.map.continents.length; i++) {
-            for (var j = 0; j < game.map.continents[i].territories.length; j++) {
-                if (game.map.continents[i].territories[j].owner !== this.index) {
-                    armyCount[i] -= game.map.continents[i].territories[j].armyCount;
-                }
-                else {
-                    armyCount[i] += game.map.continents[i].territories[j].armyCount;
-                    validContinents[i] = true;
-                }
-            }
-        }
-
-        var best = 0;
-        for (var i = 1; i < armyCount.length; i++) {
-            if (((armyCount[i] >= armyCount[best]) && (validContinents[i])) || (validContinents[best] !== true)) {
-                best = i;
-            }
-        }
-
-        this.goalContinent = game.map.continents[best];        
-    }
-
-
-    private getTerritoriesOwnedInGoalContinent(game: Game): Array<Territory> {
-        var array = new Array<Territory>();
-        for (var i = 0; i < this.goalContinent.territories.length; i++) {
-            if (this.goalContinent.territories[i].owner === this.index) {
-                array.push(this.goalContinent.territories[i]);
-            }
-        }
-        return array;
-    }
-
-    private assignStartOfTurnArmies(game: Game) {
-        this.ensureBorderTerritoriesAreCovered(game);
-        this.assignArmiesToGoalContinent(game);
-
-        game.mapDisplay.draw(game);
-    }
-
-    ensureBorderTerritoriesAreCovered(game: Game) {
-        for (var i = 0; i < game.map.continents.length; i++) {
-            if (this.doWeOwnContinent(game.map.continents[i].territories[0])) {
-                for (var j = 0; j < game.map.continents[i].borderTerritories.length; j++) {
-                    var territory = game.map.continents[i].borderTerritories[j];
-                    
-                    if (territory.owner === this.index) {
-                        //we want our borders to have at least 20 armies
-                        while (territory.armyCount < 20) {
-                            this.assignArmy(territory);
-                            if (this.armiesToPlace === 0)
-                                return;
-                        }
-
-                        //we want our borders to have at least x (?) times more armies than the surrounding territories
-                        for (var k = 0; k < territory.neighbors.length; k++) {
-                            if (territory.neighbors[k].continentIndex !== game.map.continents[i].index) {
-                                if (territory.neighbors[k].owner !== this.index) {
-                                    while (territory.neighbors[k].armyCount * 1.3 > territory.armyCount) {
-                                        this.assignArmy(territory);
-                                        if (this.armiesToPlace === 0)
-                                            return;
-                                    }
-                                }
-                            }
-                        } 
-                    }
-                }
-            }
-        }
-    }
-
-    assignArmiesToGoalContinent(game: Game) {
-        this.territoriesOwnedInGoalContinent = this.getTerritoriesOwnedInGoalContinent(game);
-        while (this.armiesToPlace > 0) {
-            var territory = this.territoriesOwnedInGoalContinent[0, getRand(0, this.territoriesOwnedInGoalContinent.length - 1)];
-            this.assignArmy(territory);
-        }
-    }
-
-    assignArmy(territory: Territory) {
-        territory.armyCount += 1;
-        this.armiesToPlace -= 1;
-    }
-
-    //we get a card if we captured a territory 
-    ensureCardEarnedThisTurn() {
-        if (this.cardGainedThisTurn !== true) {
-            for (var i = 0; i < this.territories.length; i++) {
-                
-            }
-        }
-    }
-
-    moveArmiesToGoalContinent(game: Game) {
-        for (var i = 0; i < this.territories.length; i++) {
-            if (this.territories[i].continentIndex !== this.goalContinent.index) {
-                if (this.doWeOwnContinent(this.territories[i]) !== true) {
-                    if (this.territories[i].armyCount > 0) {
-                        for (var j = 0; j < this.territories[i].neighbors.length; j++) {
-                            if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
-                                game.handleTerritorySelection(this.territories[i]);
-                                game.handleTerritorySelection(this.territories[i].neighbors[j]);
-                                if (this.territories[i].neighbors[j].owner === this.index) {
-                                    game.moveArmies(1);
-                                }
-                                else {
-                                    game.attack(1);
-                                }
-                                game.deselectTerritories();
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    doWeOwnContinent(territory: Territory): boolean {
-        return this.continentsWeOwn[territory.continentIndex];
-    }
-
-    //compute it once and just store it
-    calculateContinentsOwned(game: Game) {
-        this.continentsWeOwn = new Array<boolean>(game.map.continents.length);
-        for (var i = 0; i < this.continentsWeOwn.length; i++) {
-            this.continentsWeOwn[i] = game.map.continents[i].doesNationOwnEntireContinent(this);
-        }
-    }
-}
-
 class Game {
     map: RiskMap;
     mapDisplay: MapDisplay;
@@ -517,6 +361,11 @@ class Game {
                 }
             }
         }
+
+        for (var i = 0; i < this.nations.length; i++) {
+            this.calculateIncome(this.nations[i]);
+        }
+        this.syncArmiesToAssignWithDOM();
     }
 
     private changeTerritoryOwner(nation: Nation, territory: Territory) {
@@ -605,12 +454,13 @@ class Game {
 
     handleTerritorySelection(territory: Territory) {
         var selectedColor = new Color(territory.color.r + 50, territory.color.g + 50, territory.color.b + 50);
-        
+
         if (this.aSelectedTerritory === null) {
             if (territory.armyCount > 0) {
                 this.mapDisplay.fillPixels(territory.pixels, selectedColor);
                 this.aSelectedTerritory = territory;
             }
+
         }
         else if (this.aSelectedTerritory.name === territory.name) {
             this.aSelectedTerritory = null;
@@ -625,6 +475,9 @@ class Game {
             if (this.aSelectedTerritory.isNeighbor(territory)) {
                 this.bSelectedTerritory = territory;
                 this.mapDisplay.fillPixels(territory.pixels, selectedColor);
+            }
+            else {
+                this.deselectTerritories();
             }
         }
         else if (this.bSelectedTerritory.name === territory.name) {
@@ -799,5 +652,11 @@ window.onload = () => {
     var mapBuilder = new MapBuilder();
     mapBuilder.worldMap(function (map) {
         var game = new Game(map);
+
+        var pathfinder = new Pathfinding(game.map.territories);
+        var a = game.map.territories[0];
+        var b = game.map.territories[9];
+        console.log(a.name, b.name);
+        pathfinder.findPath(a, b);
     });
 };

@@ -23,6 +23,7 @@
     <Content Include="web.config" />
   </ItemGroup>
   <ItemGroup>
+    <TypeScriptCompile Include="ai.ts" />
     <TypeScriptCompile Include="app.ts" />
     <TypeScriptCompile Include="mapBuilder.ts" />
   </ItemGroup>

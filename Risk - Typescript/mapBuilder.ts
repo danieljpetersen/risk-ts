@@ -220,7 +220,10 @@
             for (var i = 0; i < worldMap.continents.length; i++) {
                 worldMap.continents[i].index = i;
                 for (var j = 0; j < worldMap.continents[i].territories.length; j++) {
+                    var index = worldMap.territories.length;
+
                     worldMap.territories.push(worldMap.continents[i].territories[j]);
+                    worldMap.territories[index].index = index;
                     worldMap.continents[i].territories[j].continentIndex = i;
                 }
             }
