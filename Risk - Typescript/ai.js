@@ -44,7 +44,7 @@ var Pathfinding = (function () {
                 var neighbor = current.territory.neighbors[i];
                 if (this.validTerritoryToCheck(neighbor)) {
                     if (neighbor.owner === start.owner) {
-                        var resistence = 0;
+                        var resistence = current.resistence;
                     } else {
                         var resistence = current.resistence + neighbor.armyCount;
                     }
