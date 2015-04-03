@@ -110,6 +110,7 @@ class AI extends Nation {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
+        this.conquerContinentIfApplicable();
         this.moveArmiesToContinentBorders(game);
         this.ensureCardEarnedThisTurn(game);
     }
@@ -303,6 +304,35 @@ class AI extends Nation {
                 }
             }
         }
+    }
+
+    conquerContinentIfApplicable() {
+        while (this.conquerTerritoryInGoalContinent());
+    }
+
+    conquerTerritoryInGoalContinent(): boolean {
+        var myArmyCount = 0, enemyArmyCount = 0;
+        for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            if (this.goalContinent.territories[i].owner === this.index) {
+                myArmyCount += this.goalContinent.territories[i].armyCount;
+            }
+            else {
+                enemyArmyCount += this.goalContinent.territories[i].armyCount;
+            }
+        }
+
+        if (enemyArmyCount === 0) {
+            return false;
+        }
+
+        if (myArmyCount > enemyArmyCount * 1.5) {
+            for (var i = 0; i < this.goalContinent.territories.length; i++) {
+
+            }
+        }
+        
+
+        return false;
     }
 
     doWeOwnContinent(territory: Territory): boolean {

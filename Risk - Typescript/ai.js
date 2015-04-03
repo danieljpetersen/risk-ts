@@ -98,6 +98,7 @@ var AI = (function (_super) {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
+        this.conquerContinentIfApplicable();
         this.moveArmiesToContinentBorders(game);
         this.ensureCardEarnedThisTurn(game);
     };
@@ -284,6 +285,33 @@ var AI = (function (_super) {
                 }
             }
         }
+    };
+
+    AI.prototype.conquerContinentIfApplicable = function () {
+        while (this.conquerTerritoryInGoalContinent())
+            ;
+    };
+
+    AI.prototype.conquerTerritoryInGoalContinent = function () {
+        var myArmyCount = 0, enemyArmyCount = 0;
+        for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            if (this.goalContinent.territories[i].owner === this.index) {
+                myArmyCount += this.goalContinent.territories[i].armyCount;
+            } else {
+                enemyArmyCount += this.goalContinent.territories[i].armyCount;
+            }
+        }
+
+        if (enemyArmyCount === 0) {
+            return false;
+        }
+
+        if (myArmyCount > enemyArmyCount * 1.5) {
+            for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            }
+        }
+
+        return false;
     };
 
     AI.prototype.doWeOwnContinent = function (territory) {
