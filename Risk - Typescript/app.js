@@ -490,51 +490,13 @@ var Game = (function () {
         //right click
         this.mapDisplay.canvas.oncontextmenu = function (event) {
             event.preventDefault();
-
-            if (that.nations[0].armiesToPlace > 0) {
-                var position = that.mapDisplay.getCanvasPosition(event);
-
-                var territory = that.map.territoryAtPoint(position);
-                if (territory) {
-                    that.handleHumanArmyPlacement(territory, 100);
-                }
-            } else {
-                if (that.aSelectedTerritory !== null) {
-                    if (that.bSelectedTerritory !== null) {
-                        if (that.aSelectedTerritory.owner === that.bSelectedTerritory.owner) {
-                            that.moveArmies(that.armyUsageMode);
-                        } else {
-                            that.attack(that.armyUsageMode);
-                        }
-                    }
-                }
-            }
+            that.handleMousePress('right', event);
         };
         this.mapDisplay.canvas.addEventListener("click", function (event) {
-            var position = that.mapDisplay.getCanvasPosition(event);
-
-            var territory = that.map.territoryAtPoint(position);
-            if (territory) {
-                //if we're at beginning of turn and need to place armies
-                if (that.nations[0].armiesToPlace > 0) {
-                    that.handleHumanArmyPlacement(territory, 1);
-                } else {
-                    //don't execute if we clicked on territory not belonging to us and we have nothing selected
-                    if ((that.aSelectedTerritory === null) && (territory.owner !== 0)) {
-                    } else {
-                        that.handleTerritorySelection(territory);
-                    }
-                }
-            }
+            that.handleMousePress('left', event);
         }, false);
 
         document.onkeydown = function (event) {
-            /*yfor (var i = 0; i < that.map.territories.length; i++) {
-            if (that.map.territories[i].continentBorder) {
-            that.mapDisplay.fillPixels(that.map.territories[i].pixels, new Color(0, 0, 0));
-            }
-            }
-            that.mapDisplay.draw(that);*/
             //enter
             if (event.keyCode === 13) {
                 that.deselectTerritories();
@@ -568,6 +530,36 @@ var Game = (function () {
         document.onmouseup = function (event) {
             that.shiftKeyPressed = event.shiftKey;
         };
+    };
+
+    Game.prototype.handleMousePress = function (button, event) {
+        var position = this.mapDisplay.getCanvasPosition(event);
+        var territory = this.map.territoryAtPoint(position);
+        if (territory) {
+            if (this.nations[0].armiesToPlace > 0) {
+                if (button === 'left') {
+                    this.handleHumanArmyPlacement(territory, 1);
+                } else {
+                    this.handleHumanArmyPlacement(territory, 100);
+                }
+            } else {
+                //can't do anything if we click on a territory that's not ours while we have nothing selected
+                if ((this.aSelectedTerritory === null) && (territory.owner !== 0)) {
+                } else {
+                    this.handleTerritorySelection(territory);
+
+                    if (this.aSelectedTerritory !== null) {
+                        if (this.bSelectedTerritory !== null) {
+                            if (this.aSelectedTerritory.owner === this.bSelectedTerritory.owner) {
+                                this.moveArmies(this.armyUsageMode);
+                            } else {
+                                this.attack(this.armyUsageMode);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     };
 
     Game.prototype.handleHumanArmyPlacement = function (territory, armiesToPlace) {
