@@ -30,7 +30,8 @@ class PathNode {
 //resistence will often be that of the least distance, but I'm not even going to bother.
 class Pathfinding {
     territories: Array<Territory>;
-    onToCheckedList: Array<boolean>;
+
+    touched: Array<boolean>;
     toCheck: Array<PathNode>;
     checked: {};
 
@@ -41,31 +42,30 @@ class Pathfinding {
     findPath(start: Territory, goal: Territory): Path {
         this.checked = {};
         this.toCheck = new Array<PathNode>();
-        this.toCheck.push(new PathNode(null, start, 0));
-        this.onToCheckedList = new Array<boolean>(this.territories.length);
-        for (var i = 0; i < this.onToCheckedList.length; i++) {
-            this.onToCheckedList[i] = false;
+        this.touched = new Array<boolean>(this.territories.length);
+        for (var i = 0; i < this.territories.length; i++) {
+            this.touched[i] = false;
             this.checked[i] = null;
         }
-        this.onToCheckedList[start.index] = true;
-
+        this.touched[start.index] = true;
+        this.toCheck.push(new PathNode(null, start, 0));
+    
         while (true) {
             var current = this.toCheck.shift();
             this.checked[current.territory.index] = current;
-            console.log('current ===', current.territory.name, 'current resistence=', current.resistence);
             for (var i = 0; i < current.territory.neighbors.length; i++) {
                 var neighbor = current.territory.neighbors[i];
-                if (this.validTerritoryToCheck(neighbor)) {
+                if (this.touched[neighbor.index] != true) {
                     if (neighbor.owner === start.owner) {
                         var resistence = current.resistence;
                     }
                     else {
                         var resistence = current.resistence + neighbor.armyCount;
                     }
-                    console.log(neighbor.name, 'armycount=', neighbor.armyCount, 'resistence=', resistence);
 
+                    console.log(resistence, neighbor.name);
                     this.toCheck.push(new PathNode(current.territory.index, neighbor, resistence));
-                    this.onToCheckedList[neighbor.index] = true;
+                    this.touched[neighbor.index] = true;
 
                     if (neighbor.index === goal.index) {
                         this.checked[neighbor.index] = new PathNode(current.territory.index, neighbor, resistence);
@@ -73,13 +73,8 @@ class Pathfinding {
                     }
                 }
             }    
-            console.log('---sortingbelow-');
-            this.toCheck = this.toCheck.sort(function (a, b) { return a.resistence - b.resistence; });
+            this.toCheck.sort(function (a, b) { return a.resistence - b.resistence; });
         }
-    }
-
-    private validTerritoryToCheck(territory: Territory) {
-        return ((this.checked[territory.index] === null) && (this.onToCheckedList[territory.index] !== true));
     }
 
     private recordFinalPath(goalIndex: number): Path {
@@ -89,11 +84,17 @@ class Pathfinding {
         path.territories.push(this.territories[index]);
         path.resistenceCount = this.checked[goalIndex].resistence;
 
+        console.log('------------------');
+        console.log('------------------');
+        console.log('------------------');
+        console.log('------------------');
+        console.log('------------------', path.resistenceCount);
         //work backwards until we reach the start
         while (this.checked[index].resistence !== 0) {
             index = this.checked[index].parent;
             path.territories.push(this.territories[index]);
-            console.log(path.resistenceCount, this.territories[index].name);
+            console.log(this.checked[index].resistence, this.territories[index].name);
+
         }
         path.territories.reverse();
         console.log("FINAL PATH", path, "FINAL RESISTENCE", path.resistenceCount);

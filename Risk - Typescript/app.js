@@ -551,7 +551,7 @@ window.onload = function () {
 
         var pathfinder = new Pathfinding(game.map.territories);
         var a = game.map.territories[0];
-        var b = game.map.territories[9];
+        var b = game.map.territories[16];
         console.log(a.name, b.name);
         pathfinder.findPath(a, b);
     });

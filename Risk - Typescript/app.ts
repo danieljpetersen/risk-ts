@@ -584,6 +584,17 @@ class Game {
 
             var territory = that.map.territoryAtPoint(position);
             if (territory) {
+
+              /*ensuring neighboring territories are correct
+                for (var i = 0; i < that.map.territories.length; i++) {
+                    that.mapDisplay.fillPixels(that.map.territories[i].pixels, new Color(255, 255, 255));
+                }
+                for (var i = 0; i < territory.neighbors.length; i++) {
+                    that.mapDisplay.fillPixels(territory.neighbors[i].pixels, new Color(0, 0, 0));
+                }
+
+                that.mapDisplay.draw(that);*/
+
                 //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
                     that.handleHumanArmyPlacement(territory, 1);
@@ -655,7 +666,7 @@ window.onload = () => {
 
         var pathfinder = new Pathfinding(game.map.territories);
         var a = game.map.territories[0];
-        var b = game.map.territories[9];
+        var b = game.map.territories[16];
         console.log(a.name, b.name);
         pathfinder.findPath(a, b);
     });
