@@ -1,4 +1,5 @@
-﻿function getRand(min, max) {
+﻿//temporary -- need to replace with good random num generator
+function getRand(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
@@ -6,10 +7,13 @@ function shuffleArray(array) {
     var counter = array.length, temp, index;
 
     while (counter > 0) {
+        // Pick a random index
         index = Math.floor(Math.random() * counter);
 
+        // Decrease counter by 1
         counter--;
 
+        // And swap the last element with it
         temp = array[counter];
         array[counter] = array[index];
         array[index] = temp;
@@ -143,6 +147,7 @@ var MapDisplay = (function () {
         this.context = this.canvas.getContext("2d");
         this.image = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
     }
+    //push to screen
     MapDisplay.prototype.draw = function (game) {
         this.context.putImageData(this.image, 0, 0);
 
@@ -150,6 +155,7 @@ var MapDisplay = (function () {
             this.drawText(game.map.territories[i]);
     };
 
+    //modify image in memory
     MapDisplay.prototype.fillPixels = function (pixels, color) {
         for (var i = 0; i < pixels.length; i++) {
             var index = (pixels[i].x + pixels[i].y * this.canvas.width) * 4;
@@ -292,6 +298,7 @@ var Game = (function () {
     };
 
     Game.prototype.changeTerritoryOwner = function (nation, territory) {
+        //remove territory from current owner;
         if (territory.owner !== -1) {
             var array = [];
 
@@ -371,9 +378,18 @@ var Game = (function () {
                 nation.armiesToPlace += this.map.continents[i].incomeBonus;
             }
         }
+        nation.handInCards();
     };
 
-    Game.prototype.handleTerritorySelection = function (territory) {
+    Game.prototype.handleTerritorySelection = function (territory, bTerritory) {
+        if (typeof bTerritory === "undefined") { bTerritory = null; }
+        if (bTerritory !== null) {
+            this.deselectTerritories();
+            this.aSelectedTerritory = territory;
+            this.bSelectedTerritory = bTerritory;
+            return;
+        }
+
         var selectedColor = new Color(territory.color.r + 50, territory.color.g + 50, territory.color.b + 50);
 
         if (this.aSelectedTerritory === null) {
@@ -418,6 +434,7 @@ var Game = (function () {
         this.syncSelectedTerritoriesWithDOM();
     };
 
+    //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.moveArmies = function (armyUsage) {
         var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
         this.aSelectedTerritory.armyCount -= aArmy;
@@ -427,6 +444,7 @@ var Game = (function () {
         this.mapDisplay.draw(this);
     };
 
+    //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.attack = function (armyUsage) {
         var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
         if (aArmy >= 1) {
@@ -438,15 +456,20 @@ var Game = (function () {
                 } else {
                     this.bSelectedTerritory.armyCount -= 1;
                 }
+
+                attackerWins = true;
             }
 
+            //attacker loses!
             if (aArmy === 0) {
                 this.deselectTerritories();
+                var attackerWins = false;
             } else if (this.bSelectedTerritory.armyCount === 0) {
                 this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
 
                 this.aSelectedTerritory.armyCount -= aArmy;
 
+                //penalty of 1 for taking over new territory
                 aArmy -= 1;
                 this.bSelectedTerritory.armyCount = aArmy;
                 this.changeTerritoryOwner(this.nations[this.aSelectedTerritory.owner], this.bSelectedTerritory);
@@ -454,12 +477,14 @@ var Game = (function () {
             }
 
             this.mapDisplay.draw(this);
+            return attackerWins;
         }
     };
 
     Game.prototype.bindEvents = function () {
         var that = this;
 
+        //right click
         this.mapDisplay.canvas.oncontextmenu = function (event) {
             event.preventDefault();
 
@@ -487,9 +512,11 @@ var Game = (function () {
 
             var territory = that.map.territoryAtPoint(position);
             if (territory) {
+                //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
                     that.handleHumanArmyPlacement(territory, 1);
                 } else {
+                    //don't execute if we clicked on territory not belonging to us and we have nothing selected
                     if ((that.aSelectedTerritory === null) && (territory.owner !== 0)) {
                     } else {
                         that.handleTerritorySelection(territory);
@@ -499,24 +526,28 @@ var Game = (function () {
         }, false);
 
         document.onkeydown = function (event) {
+            //enter
             if (event.keyCode === 13) {
                 that.deselectTerritories();
 
-                if (that.nations[0].armiesToPlace === 0) {
+                if ((that.nations[0].armiesToPlace === 0) || (that.nations[0].isAlive() !== true)) {
                     that.endTurn();
                 }
             }
 
+            //1
             if ((event.keyCode === 49) || (event.keyCode === 97)) {
                 that.armyUsageMode = 1;
                 document.getElementById("army-usage-mode").innerHTML = "Entire Army";
             }
 
+            //2
             if ((event.keyCode === 50) || (event.keyCode === 98)) {
                 that.armyUsageMode = 0.5;
                 document.getElementById("army-usage-mode").innerHTML = "Half Army";
             }
 
+            //3
             if ((event.keyCode === 51) || (event.keyCode === 99)) {
                 that.armyUsageMode = 0.333333333333333333333;
                 document.getElementById("army-usage-mode").innerHTML = "1/3rd Army";
@@ -532,6 +563,7 @@ var Game = (function () {
 
     Game.prototype.handleHumanArmyPlacement = function (territory, armiesToPlace) {
         if (territory.owner === 0) {
+            //ensure we're not giving the player more armies than they have available
             armiesToPlace = Math.min(armiesToPlace, this.nations[0].armiesToPlace);
 
             territory.armyCount += armiesToPlace;
@@ -556,3 +588,4 @@ window.onload = function () {
         pathfinder.findPath(a, b);
     });
 };
+//# sourceMappingURL=app.js.map

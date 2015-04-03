@@ -450,9 +450,17 @@ class Game {
                 nation.armiesToPlace += this.map.continents[i].incomeBonus;
             }
         }
+        nation.handInCards();
     }
 
-    handleTerritorySelection(territory: Territory) {
+    handleTerritorySelection(territory: Territory, bTerritory = null) {
+        if (bTerritory !== null) {
+            this.deselectTerritories();
+            this.aSelectedTerritory = territory;
+            this.bSelectedTerritory = bTerritory;
+            return;
+        }
+
         var selectedColor = new Color(territory.color.r + 50, territory.color.g + 50, territory.color.b + 50);
 
         if (this.aSelectedTerritory === null) {
@@ -460,7 +468,6 @@ class Game {
                 this.mapDisplay.fillPixels(territory.pixels, selectedColor);
                 this.aSelectedTerritory = territory;
             }
-
         }
         else if (this.aSelectedTerritory.name === territory.name) {
             this.aSelectedTerritory = null;
@@ -514,7 +521,7 @@ class Game {
     }
     
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
-    attack(armyUsage) {
+    attack(armyUsage): boolean {
         var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
         if (aArmy >= 1) {
 
@@ -527,11 +534,14 @@ class Game {
                 else {
                     this.bSelectedTerritory.armyCount -= 1;
                 }
+
+                attackerWins = true;
             }
 
             //attacker loses!
             if (aArmy === 0) {
                 this.deselectTerritories();
+                var attackerWins = false;
             }
 
             //attacker wins!
@@ -548,6 +558,7 @@ class Game {
             }
 
             this.mapDisplay.draw(this);
+            return attackerWins;
         }
     }
  
@@ -584,17 +595,6 @@ class Game {
 
             var territory = that.map.territoryAtPoint(position);
             if (territory) {
-
-              /*ensuring neighboring territories are correct
-                for (var i = 0; i < that.map.territories.length; i++) {
-                    that.mapDisplay.fillPixels(that.map.territories[i].pixels, new Color(255, 255, 255));
-                }
-                for (var i = 0; i < territory.neighbors.length; i++) {
-                    that.mapDisplay.fillPixels(territory.neighbors[i].pixels, new Color(0, 0, 0));
-                }
-
-                that.mapDisplay.draw(that);*/
-
                 //if we're at beginning of turn and need to place armies
                 if (that.nations[0].armiesToPlace > 0) {
                     that.handleHumanArmyPlacement(territory, 1);
@@ -614,7 +614,7 @@ class Game {
             if (event.keyCode === 13) {
                 that.deselectTerritories(); 
 
-                if (that.nations[0].armiesToPlace === 0) {
+                if ((that.nations[0].armiesToPlace === 0) || (that.nations[0].isAlive() !== true)) {
                     that.endTurn();
                 }
             }

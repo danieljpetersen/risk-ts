@@ -21,6 +21,11 @@ var PathNode = (function () {
     return PathNode;
 })();
 
+//who needs a* when you have brute force.
+//Actually, the interesting thing about this is that distance isn't a factor in finding our path.
+//We really only care about how many troops we have to fight in order to reach our goal.
+//It would probably benefit from heuristics regardless, as I imagine the path of least
+//resistence will often be that of the least distance, but I'm not even going to bother.
 var Pathfinding = (function () {
     function Pathfinding(territories) {
         this.territories = territories;
@@ -48,7 +53,6 @@ var Pathfinding = (function () {
                         var resistence = current.resistence + neighbor.armyCount;
                     }
 
-                    console.log(resistence, neighbor.name);
                     this.toCheck.push(new PathNode(current.territory.index, neighbor, resistence));
                     this.touched[neighbor.index] = true;
 
@@ -71,19 +75,11 @@ var Pathfinding = (function () {
         path.territories.push(this.territories[index]);
         path.resistenceCount = this.checked[goalIndex].resistence;
 
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------', path.resistenceCount);
-
         while (this.checked[index].resistence !== 0) {
             index = this.checked[index].parent;
             path.territories.push(this.territories[index]);
-            console.log(this.checked[index].resistence, this.territories[index].name);
         }
         path.territories.reverse();
-        console.log("FINAL PATH", path, "FINAL RESISTENCE", path.resistenceCount);
         return path;
     };
     return Pathfinding;
@@ -102,7 +98,7 @@ var AI = (function (_super) {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
-        this.ensureCardEarnedThisTurn();
+        this.ensureCardEarnedThisTurn(game);
     };
 
     AI.prototype.determineGoalContinent = function (game) {
@@ -194,9 +190,30 @@ var AI = (function (_super) {
         this.armiesToPlace -= 1;
     };
 
-    AI.prototype.ensureCardEarnedThisTurn = function () {
+    //we get a card if we captured a territory
+    AI.prototype.ensureCardEarnedThisTurn = function (game) {
         if (this.cardGainedThisTurn !== true) {
+            var bestIndex = { i: null, j: null }, bestDifference = -9999;
+
             for (var i = 0; i < this.territories.length; i++) {
+                for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                    if (this.index !== this.territories[i].neighbors[j].owner) {
+                        var difference = this.territories[i].armyCount - this.territories[i].neighbors[j].armyCount;
+                        if (difference > bestDifference) {
+                            bestDifference = difference;
+                            bestIndex.i = i;
+                            bestIndex.j = j;
+                        }
+                    }
+                }
+            }
+            if (bestDifference > 1) {
+                game.handleTerritorySelection(this.territories[bestIndex.i], this.territories[bestIndex.i].neighbors[bestIndex.j]);
+                if (game.attack(1)) {
+                    game.handleTerritorySelection(this.territories[bestIndex.i].neighbors[bestIndex.j], this.territories[bestIndex.i]);
+                    game.moveArmies(1);
+                    game.deselectTerritories();
+                }
             }
         }
     };
@@ -205,11 +222,10 @@ var AI = (function (_super) {
         for (var i = 0; i < this.territories.length; i++) {
             if (this.territories[i].continentIndex !== this.goalContinent.index) {
                 if (this.doWeOwnContinent(this.territories[i]) !== true) {
-                    if (this.territories[i].armyCount > 0) {
+                    if (this.territories[i].armyCount > 1) {
                         for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                             if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
-                                game.handleTerritorySelection(this.territories[i]);
-                                game.handleTerritorySelection(this.territories[i].neighbors[j]);
+                                game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
                                 if (this.territories[i].neighbors[j].owner === this.index) {
                                     game.moveArmies(1);
                                 } else {
@@ -228,6 +244,7 @@ var AI = (function (_super) {
         return this.continentsWeOwn[territory.continentIndex];
     };
 
+    //compute it once and just store it
     AI.prototype.calculateContinentsOwned = function (game) {
         this.continentsWeOwn = new Array(game.map.continents.length);
         for (var i = 0; i < this.continentsWeOwn.length; i++) {
@@ -236,3 +253,4 @@ var AI = (function (_super) {
     };
     return AI;
 })(Nation);
+//# sourceMappingURL=ai.js.map

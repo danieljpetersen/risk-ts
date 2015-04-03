@@ -63,7 +63,6 @@ class Pathfinding {
                         var resistence = current.resistence + neighbor.armyCount;
                     }
 
-                    console.log(resistence, neighbor.name);
                     this.toCheck.push(new PathNode(current.territory.index, neighbor, resistence));
                     this.touched[neighbor.index] = true;
 
@@ -84,20 +83,12 @@ class Pathfinding {
         path.territories.push(this.territories[index]);
         path.resistenceCount = this.checked[goalIndex].resistence;
 
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------');
-        console.log('------------------', path.resistenceCount);
         //work backwards until we reach the start
         while (this.checked[index].resistence !== 0) {
             index = this.checked[index].parent;
-            path.territories.push(this.territories[index]);
-            console.log(this.checked[index].resistence, this.territories[index].name);
-
+            path.territories.push(this.territories[index]); 
         }
         path.territories.reverse();
-        console.log("FINAL PATH", path, "FINAL RESISTENCE", path.resistenceCount);
         return path;
     }
 }
@@ -119,7 +110,7 @@ class AI extends Nation {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
-        this.ensureCardEarnedThisTurn();
+        this.ensureCardEarnedThisTurn(game);
     }
 
     private determineGoalContinent(game: Game) {
@@ -216,10 +207,30 @@ class AI extends Nation {
     }
 
     //we get a card if we captured a territory 
-    ensureCardEarnedThisTurn() {
+    ensureCardEarnedThisTurn(game: Game) {
         if (this.cardGainedThisTurn !== true) {
-            for (var i = 0; i < this.territories.length; i++) {
 
+            var bestIndex = { i: null, j: null }, bestDifference = -9999;
+
+            for (var i = 0; i < this.territories.length; i++) {
+                for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                    if (this.index !== this.territories[i].neighbors[j].owner) {
+                        var difference = this.territories[i].armyCount - this.territories[i].neighbors[j].armyCount;
+                        if (difference > bestDifference) {
+                            bestDifference = difference;
+                            bestIndex.i = i;
+                            bestIndex.j = j;
+                        }
+                    }
+                }
+            }
+            if (bestDifference > 1) {
+                game.handleTerritorySelection(this.territories[bestIndex.i], this.territories[bestIndex.i].neighbors[bestIndex.j]);
+                if (game.attack(1)) {
+                    game.handleTerritorySelection(this.territories[bestIndex.i].neighbors[bestIndex.j], this.territories[bestIndex.i]);
+                    game.moveArmies(1);
+                    game.deselectTerritories();
+                }
             }
         }
     }
@@ -228,11 +239,10 @@ class AI extends Nation {
         for (var i = 0; i < this.territories.length; i++) {
             if (this.territories[i].continentIndex !== this.goalContinent.index) {
                 if (this.doWeOwnContinent(this.territories[i]) !== true) {
-                    if (this.territories[i].armyCount > 0) {
+                    if (this.territories[i].armyCount > 1) {
                         for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                             if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
-                                game.handleTerritorySelection(this.territories[i]);
-                                game.handleTerritorySelection(this.territories[i].neighbors[j]);
+                                game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
                                 if (this.territories[i].neighbors[j].owner === this.index) {
                                     game.moveArmies(1);
                                 }
