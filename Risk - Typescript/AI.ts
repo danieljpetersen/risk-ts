@@ -110,6 +110,7 @@ class AI extends Nation {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
+        this.moveArmiesToContinentBorders(game);
         this.ensureCardEarnedThisTurn(game);
     }
 
@@ -229,7 +230,6 @@ class AI extends Nation {
                 if (game.attack(1)) {
                     game.handleTerritorySelection(this.territories[bestIndex.i].neighbors[bestIndex.j], this.territories[bestIndex.i]);
                     game.moveArmies(1);
-                    game.deselectTerritories();
                 }
             }
         }
@@ -242,15 +242,62 @@ class AI extends Nation {
                     if (this.territories[i].armyCount > 1) {
                         for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                             if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
-                                game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
-                                if (this.territories[i].neighbors[j].owner === this.index) {
-                                    game.moveArmies(1);
+                                if (this.territories[i].continentBorder !== true) {
+                                    game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
+                                    if (this.territories[i].neighbors[j].owner === this.index) {
+                                        game.moveArmies(1);
+                                    }
+                                    else {
+                                        game.attack(1);
+                                    }
                                 }
-                                else {
-                                    game.attack(1);
-                                }
-                                game.deselectTerritories();
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //very naive
+    moveArmiesToContinentBorders(game: Game) {
+        var didWeMove = false;
+        for (var i = 0; i < this.territories.length; i++) {
+            if (this.territories[i].armyCount > 1) {
+                for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                    var neighbor = this.territories[i].neighbors[j];
+                    if (neighbor.owner === this.index) {
+                        if (neighbor.continentBorder === true) {
+                            var a = this.territories[i];
+                            var b = this.territories[i].neighbors[j];
+                            game.handleTerritorySelection(a, b);
+                            if (this.territories[i].continentBorder) {
+                                var ratio = this.territories[i].armyCount / neighbor.armyCount;
+                                if (ratio < 1) {
+                                    game.moveArmies(ratio);
+                                }
+                            }
+                            else {
+                                game.moveArmies(1);
+                            }
+                            didWeMove = true;
+                        }                        
+                    }
+                }
+            }
+        }
+
+        if (didWeMove === false) {
+            for (var i = 0; i < this.territories.length; i++) {
+                if (this.territories[i].continentBorder !== true) {
+                    for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                        var neighbor = this.territories[i].neighbors[j];
+                        if (neighbor.owner === this.index) {
+                            var a = this.territories[i];
+                            var b = this.territories[i].neighbors[j];
+                            game.handleTerritorySelection(a, b);
+                            game.moveArmies(1);
+                            return;
                         }
                     }
                 }

@@ -68,6 +68,7 @@ var Territory = (function () {
         this.armyCount = 0;
         this.owner = -1;
         this.neighbors = new Array();
+        this.continentBorder = false;
     }
     Territory.prototype.wasClicked = function (point) {
         for (var i = 0; i < this.pixels.length; i++) {
@@ -117,6 +118,7 @@ var Continent = (function () {
             for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                 if (this.territories[i].neighbors[j].continentIndex !== this.index) {
                     this.borderTerritories.push(this.territories[i].neighbors[j]);
+                    this.territories[i].continentBorder = true;
                     break;
                 }
             }
@@ -250,6 +252,7 @@ var Game = (function () {
     function Game(map) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
+        this.pathfinder = new Pathfinding(this.map.territories);
         this.shiftKeyPressed = false;
         this.aSelectedTerritory = null;
         this.bSelectedTerritory = null;
@@ -526,6 +529,12 @@ var Game = (function () {
         }, false);
 
         document.onkeydown = function (event) {
+            /*yfor (var i = 0; i < that.map.territories.length; i++) {
+            if (that.map.territories[i].continentBorder) {
+            that.mapDisplay.fillPixels(that.map.territories[i].pixels, new Color(0, 0, 0));
+            }
+            }
+            that.mapDisplay.draw(that);*/
             //enter
             if (event.keyCode === 13) {
                 that.deselectTerritories();

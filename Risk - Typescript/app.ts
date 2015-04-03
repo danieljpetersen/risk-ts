@@ -77,6 +77,8 @@ class Territory {
     //the index of this territory in game.territories;  just because it helps out slightly with pathfinding
     index: number;
 
+    continentBorder: boolean;
+
     color: Color;
 
     armyCount: number;
@@ -94,6 +96,7 @@ class Territory {
         this.armyCount = 0;
         this.owner = -1;
         this.neighbors = new Array<Territory>();
+        this.continentBorder = false;
     }
 
     wasClicked(point: Point): boolean {
@@ -158,6 +161,7 @@ class Continent {
             for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                 if (this.territories[i].neighbors[j].continentIndex !== this.index) {
                     this.borderTerritories.push(this.territories[i].neighbors[j]);
+                    this.territories[i].continentBorder = true;
                     break;
                 }
             }
@@ -313,6 +317,7 @@ class Game {
     shiftKeyPressed: boolean; 
     aSelectedTerritory: Territory;
     bSelectedTerritory: Territory;
+    pathfinder: Pathfinding;
 
     //(0-1):  when attacking / moving, whether to use entire army, 1/2 army, or 1/3rd army
     armyUsageMode: number;
@@ -320,6 +325,7 @@ class Game {
     constructor(map: RiskMap) {
         this.map = map;
         this.mapDisplay = new MapDisplay();
+        this.pathfinder = new Pathfinding(this.map.territories);
         this.shiftKeyPressed = false;
         this.aSelectedTerritory = null;
         this.bSelectedTerritory = null;
@@ -610,6 +616,13 @@ class Game {
         }, false);
 
         document.onkeydown = function (event) {
+            /*yfor (var i = 0; i < that.map.territories.length; i++) {
+                if (that.map.territories[i].continentBorder) {
+                    that.mapDisplay.fillPixels(that.map.territories[i].pixels, new Color(0, 0, 0));
+                }
+            }
+            that.mapDisplay.draw(that);*/
+
             //enter
             if (event.keyCode === 13) {
                 that.deselectTerritories(); 

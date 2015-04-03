@@ -168,9 +168,9 @@
             newGuinea.neighbors = [easternAustralia, westernAustralia, indonesia];
             indonesia.neighbors = [westernAustralia, newGuinea, southAsia];
 
-            worldMap.continents[northAmerica].territories = [eastUS, westUS, mexico, southwestCanada, centralCanada, easternCanada, northwestCanada, alaska];
+            worldMap.continents[northAmerica].territories = [eastUS, westUS, mexico, southwestCanada, centralCanada, easternCanada, northwestCanada, alaska, greenland];
             worldMap.continents[southAmerica].territories = [venezuela, brazil, argentina, peru];
-            worldMap.continents[europe].territories = [ukraine, spainFrance, greenland, iceland, uk, italy, denmark, norway, greece];
+            worldMap.continents[europe].territories = [ukraine, spainFrance, iceland, uk, italy, denmark, norway, greece];
             worldMap.continents[africa].territories = [northwestAfrica, egypt, eastAfrica, madagascar, southAfrica, westAfrica];
             worldMap.continents[asia].territories = [middleEast, afghanistan, ural, siberia, china, india, southAsia, mongolia, japan, eastAsia, yutusk, irkutsk];
             worldMap.continents[australia].territories = [westernAustralia, easternAustralia, newGuinea, indonesia];
