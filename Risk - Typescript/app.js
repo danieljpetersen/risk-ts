@@ -449,7 +449,7 @@ var Game = (function () {
 
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
     Game.prototype.attack = function (armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        var aArmy = Math.round(this.aSelectedTerritory.armyCount * this.armyUsageMode);
         if (aArmy >= 1) {
             while ((aArmy > 0) && (this.bSelectedTerritory.armyCount > 0)) {
                 var roll = getRand(0, 100);
@@ -459,17 +459,15 @@ var Game = (function () {
                 } else {
                     this.bSelectedTerritory.armyCount -= 1;
                 }
-
-                attackerWins = true;
             }
 
             //attacker loses!
-            if (aArmy === 0) {
+            if (aArmy <= 0) {
                 this.deselectTerritories();
                 var attackerWins = false;
-            } else if (this.bSelectedTerritory.armyCount === 0) {
+            } else if (this.bSelectedTerritory.armyCount <= 0) {
+                var attackerWins = true;
                 this.nations[this.aSelectedTerritory.owner].addRandomCardIfApplicable();
-
                 this.aSelectedTerritory.armyCount -= aArmy;
 
                 //penalty of 1 for taking over new territory
@@ -481,7 +479,10 @@ var Game = (function () {
 
             this.mapDisplay.draw(this);
             return attackerWins;
-        }
+        } else
+            console.log('less than zero');
+
+        return false;
     };
 
     Game.prototype.bindEvents = function () {

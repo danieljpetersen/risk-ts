@@ -269,19 +269,21 @@ class AI extends Nation {
                     var neighbor = this.territories[i].neighbors[j];
                     if (neighbor.owner === this.index) {
                         if (neighbor.continentBorder === true) {
-                            var a = this.territories[i];
-                            var b = this.territories[i].neighbors[j];
-                            game.handleTerritorySelection(a, b);
-                            if (this.territories[i].continentBorder) {
-                                var ratio = this.territories[i].armyCount / neighbor.armyCount;
-                                if (ratio < 1) {
-                                    game.moveArmies(ratio);
+                            if (neighbor.continentIndex !== this.goalContinent.index) {
+                                var a = this.territories[i];
+                                var b = this.territories[i].neighbors[j];
+                                game.handleTerritorySelection(a, b);
+                                if (this.territories[i].continentBorder) {
+                                    var ratio = this.territories[i].armyCount / neighbor.armyCount;
+                                    if (ratio < 1) {
+                                        game.moveArmies(ratio);
+                                    }
                                 }
+                                else {
+                                    game.moveArmies(1);
+                                }
+                                didWeMove = true;
                             }
-                            else {
-                                game.moveArmies(1);
-                            }
-                            didWeMove = true;
                         }                        
                     }
                 }
@@ -327,10 +329,9 @@ class AI extends Nation {
 
         if (myArmyCount > enemyArmyCount * 1.5) {
             for (var i = 0; i < this.goalContinent.territories.length; i++) {
-
+              //  for (
             }
         }
-        
 
         return false;
     }
