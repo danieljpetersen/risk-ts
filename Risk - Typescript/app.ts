@@ -160,7 +160,7 @@ class Continent {
         for (var i = 0; i < this.territories.length; i++) {
             for (var j = 0; j < this.territories[i].neighbors.length; j++) {
                 if (this.territories[i].neighbors[j].continentIndex !== this.index) {
-                    this.borderTerritories.push(this.territories[i].neighbors[j]);
+                    this.borderTerritories.push(this.territories[i]);
                     this.territories[i].continentBorder = true;
                     break;
                 }
@@ -416,6 +416,7 @@ class Game {
 
         this.calculateIncome(this.nations[0]);
         this.syncArmiesToAssignWithDOM();
+        this.syncCardsWithDOM();
     }
 
     private syncArmiesToAssignWithDOM() {
@@ -443,6 +444,15 @@ class Game {
                 document.getElementById("output-text").innerHTML = text;
             }
         }
+    }
+
+    private syncCardsWithDOM() {
+        var text = " -- Cards:  Red: " + this.nations[0].cards[0].toString();
+        text += ", Blue: " + this.nations[0].cards[1].toString();
+        text += ", Green: " + this.nations[0].cards[2].toString();
+        text += " (1 of each card:  +15 income.  3 of a kind:  +7 income.  See help below)"
+        
+        document.getElementById("card-display").innerHTML = text;
     }
 
     private calculateIncome(nation: Nation) {
@@ -517,8 +527,13 @@ class Game {
     }
     
     //always assumes aSelectedTerritory / bSelectedTerritory are not null
-    moveArmies(armyUsage) {
-        var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+    moveArmies(armyUsage: number, nonRatio = false) {
+        if (nonRatio) {
+            var aArmy = armyUsage;
+        }
+        else {
+            var aArmy = this.aSelectedTerritory.armyCount * this.armyUsageMode;
+        }
         this.aSelectedTerritory.armyCount -= aArmy;
         this.bSelectedTerritory.armyCount += aArmy;
 
@@ -618,6 +633,15 @@ class Game {
     }
 
     handleMousePress(button: string, event) {
+        for (var i = 0; i < this.map.continents.length; i++) {
+            for (var j = 0; j < this.map.continents[i].borderTerritories.length; j++) {
+                var t = this.map.continents[i].borderTerritories[j];
+         //       this.mapDisplay.fillPixels(t.pixels, new Color(0, 0, 0));
+            }
+          //  this.mapDisplay.draw(this);
+        }
+    
+
         var position = this.mapDisplay.getCanvasPosition(event);
         var territory = this.map.territoryAtPoint(position);
         if (territory) {

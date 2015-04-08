@@ -97,12 +97,14 @@ class AI extends Nation {
     goalContinent: Continent;
     territoriesOwnedInGoalContinent: Array<Territory>;
     continentsWeOwn: Array<boolean>;
+    borderTerritoryDistributions: any;
 
     constructor(name: string, color: Color, index: number) {
         super(name, color, index);
         this.goalContinent = null;
         this.territoriesOwnedInGoalContinent = null;
         this.continentsWeOwn = null;
+        this.borderTerritoryDistributions = null;
     }
 
     processAITurn(game: Game) {
@@ -110,9 +112,10 @@ class AI extends Nation {
         this.determineGoalContinent(game);
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
-        this.conquerContinentIfApplicable();
-        this.moveArmiesToContinentBorders(game);
+        this.conquerContinentIfApplicable(game);
+        this.randomAttackForFun(game);
         this.ensureCardEarnedThisTurn(game);
+        this.moveArmiesToContinentBorders(game);
     }
 
     private determineGoalContinent(game: Game) {
@@ -164,12 +167,18 @@ class AI extends Nation {
     }
 
     ensureBorderTerritoriesAreCovered(game: Game) {
+        var weakestIndex = -1, weakestCount = 9999;
         for (var i = 0; i < game.map.continents.length; i++) {
             if (this.doWeOwnContinent(game.map.continents[i].territories[0])) {
                 for (var j = 0; j < game.map.continents[i].borderTerritories.length; j++) {
                     var territory = game.map.continents[i].borderTerritories[j];
-
                     if (territory.owner === this.index) {
+
+                        if (territory.armyCount < weakestCount) {
+                            weakestCount = territory.armyCount;
+                            weakestIndex = territory.index;
+                        }
+
                         //we want our borders to have at least 20 armies
                         while (territory.armyCount < 20) {
                             this.assignArmy(territory);
@@ -177,6 +186,7 @@ class AI extends Nation {
                                 return;
                         }
 
+                        
                         //we want our borders to have at least x (?) times more armies than the surrounding territories
                         for (var k = 0; k < territory.neighbors.length; k++) {
                             if (territory.neighbors[k].continentIndex !== game.map.continents[i].index) {
@@ -190,6 +200,15 @@ class AI extends Nation {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        if (getRand(0, 100) > 0) {
+            if (weakestIndex !== -1) {
+                var territory = game.map.territories[weakestIndex];
+                while (this.armiesToPlace > 0) {
+                    this.assignArmy(territory);
                 }
             }
         }
@@ -262,6 +281,8 @@ class AI extends Nation {
 
     //very naive
     moveArmiesToContinentBorders(game: Game) {
+        this.calculateDistributionOfArmiesInGoalContinent(game);
+
         var didWeMove = false;
         for (var i = 0; i < this.territories.length; i++) {
             if (this.territories[i].armyCount > 1) {
@@ -269,22 +290,21 @@ class AI extends Nation {
                     var neighbor = this.territories[i].neighbors[j];
                     if (neighbor.owner === this.index) {
                         if (neighbor.continentBorder === true) {
-                            if (neighbor.continentIndex !== this.goalContinent.index) {
+                            if (neighbor.continentIndex === this.goalContinent.index) {
                                 var a = this.territories[i];
                                 var b = this.territories[i].neighbors[j];
                                 game.handleTerritorySelection(a, b);
-                                if (this.territories[i].continentBorder) {
-                                    var ratio = this.territories[i].armyCount / neighbor.armyCount;
-                                    if (ratio < 1) {
-                                        game.moveArmies(ratio);
-                                    }
-                                }
-                                else {
+                                didWeMove = true;
+                                    
+                                if (this.territories[i].continentBorder !== true) {
                                     game.moveArmies(1);
                                 }
-                                didWeMove = true;
+                                else {
+                                    var numNeeded = this.borderTerritoryDistributions - this.territories[i].neighbors[j].armyCount;
+                                    game.moveArmies(numNeeded, true);
+                                }
                             }
-                        }                        
+                        }
                     }
                 }
             }
@@ -308,11 +328,12 @@ class AI extends Nation {
         }
     }
 
-    conquerContinentIfApplicable() {
-        while (this.conquerTerritoryInGoalContinent());
+    conquerContinentIfApplicable(game: Game) {
+        while (this.conquerTerritoryInGoalContinent(game));
     }
 
-    conquerTerritoryInGoalContinent(): boolean {
+    //super super inefficient but just trying to finish 
+    conquerTerritoryInGoalContinent(game: Game): boolean {
         var myArmyCount = 0, enemyArmyCount = 0;
         for (var i = 0; i < this.goalContinent.territories.length; i++) {
             if (this.goalContinent.territories[i].owner === this.index) {
@@ -329,7 +350,52 @@ class AI extends Nation {
 
         if (myArmyCount > enemyArmyCount * 1.5) {
             for (var i = 0; i < this.goalContinent.territories.length; i++) {
-              //  for (
+                var territory = this.goalContinent.territories[i];
+                if (territory.owner === this.index) {
+                    for (var j = 0; j < territory.neighbors.length; j++) {
+                        if (territory.neighbors[j].continentIndex === this.goalContinent.index) {
+                            if (territory.neighbors[j].owner !== this.index) {
+                                game.handleTerritorySelection(territory, territory.neighbors[j]);
+                                if (game.attack(1)) {
+                                    return true;
+                                }
+                                break;
+                            }
+                        } 
+                    }
+                }
+            }
+
+            var bestIndex = -1, best = 0;
+            for (var i = 0; i < this.goalContinent.territories.length; i++) {
+                if (this.goalContinent.territories[i].owner === this.index) {
+                    if (this.goalContinent.territories[i].armyCount > best) {
+                        best = this.goalContinent.territories[i].armyCount;
+                        bestIndex = this.goalContinent.territories[i].index;
+                    }
+                }
+            }
+            if (bestIndex !== -1) {
+                console.log('we try');
+                for (var i = 0; i < this.goalContinent.territories.length; i++) {
+                    if (this.goalContinent.territories[i].owner !== this.index) {
+                        var path = game.pathfinder.findPath(game.map.territories[bestIndex], this.goalContinent.territories[i]);
+                        while (true) {
+                            var a = path.territories[0];
+                            var b = path.territories[1];
+                            game.handleTerritorySelection(a, b);
+                            if (game.attack(1)) {
+                                path.territories.shift();
+                                if (path.territories.length <= 1) {
+                                    return true;
+                                }
+                            }
+                            else {
+                                return false;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -345,6 +411,40 @@ class AI extends Nation {
         this.continentsWeOwn = new Array<boolean>(game.map.continents.length);
         for (var i = 0; i < this.continentsWeOwn.length; i++) {
             this.continentsWeOwn[i] = game.map.continents[i].doesNationOwnEntireContinent(this);
+        }
+    }
+
+    calculateDistributionOfArmiesInGoalContinent(game: Game) {
+        var myArmies = 0, numOfBorderTerritoriesOwned = 0;
+        for (var i = 0; i < this.goalContinent.territories.length; i++) {
+            if (this.goalContinent.territories[i].owner === this.index) {
+                myArmies += this.goalContinent.territories[i].armyCount;
+                numOfBorderTerritoriesOwned += 1;
+            }
+        }
+
+        //ideally this would be more intelligent and figure out which territories need more based on # of surrounding enemy troop counts
+        var numPerTerritory = myArmies / numOfBorderTerritoriesOwned;
+        this.borderTerritoryDistributions = numPerTerritory;
+    }
+
+    randomAttackForFun(game: Game) {
+        if (getRand(0, 100) > 87) {
+            var index = getRand(0, this.territories.length - 1);
+            if (this.territories[index].armyCount > 1) {
+                for (var i = 0; i < this.territories[index].neighbors.length; i++) {
+                    if (this.territories[index].neighbors[i].owner !== this.index) {
+                        var a = this.territories[index];
+                        var b = this.territories[index].neighbors[i];
+                        game.handleTerritorySelection(a, b);
+                        game.attack(1);
+
+                        game.handleTerritorySelection(b, a);
+                        game.moveArmies(1);
+                        return;
+                    }
+                }
+            }
         }
     }
 } 
