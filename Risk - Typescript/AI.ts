@@ -88,6 +88,11 @@ class Pathfinding {
             index = this.checked[index].parent;
             path.territories.push(this.territories[index]); 
         }
+        //happens if neighboring territory is goal / directly next to...
+        if (path.territories.length === 0) {
+            path.territories.push(this.territories[this.checked[index].parent]);
+        }
+
         path.territories.reverse();
         return path;
     }
@@ -506,9 +511,10 @@ class AI extends Nation {
                             if (aStats.count > bStats.count) {
                                 var neighbor = game.map.continents[targetIndex].territories[0];//doesn't matter which one
                                 var path = game.pathfinder.findPath(game.map.territories[aStats.bestIndex], neighbor);
+                                console.log("MY PATH", path);
                                 var result = this.moveArmyThroughPath(game, path);
                                 if (result) {
-                                    while (this.conquerTerritoryInContinent(game, game.map.continents[targetIndex].index)) { console.log('jolly') };
+                                    //while (this.conquerTerritoryInContinent(game, game.map.continents[targetIndex].index)) { console.log('jolly') };
                                     return;
                                 }
                                 return;
