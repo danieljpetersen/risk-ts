@@ -100,6 +100,9 @@ var AI = (function (_super) {
         this.assignStartOfTurnArmies(game);
         this.moveArmiesToGoalContinent(game);
         this.conquerContinentIfApplicable(game);
+        this.killAnyOpponentWeCan(game);
+        this.captureTerritoryInEnemyOwnedContinent(game);
+        this.attemptToCaptureNeighboringContinentForFun(game);
         this.randomAttackForFun(game);
         this.ensureCardEarnedThisTurn(game);
         this.moveArmiesToContinentBorders(game);
@@ -229,7 +232,11 @@ var AI = (function (_super) {
                 game.handleTerritorySelection(this.territories[bestIndex.i], this.territories[bestIndex.i].neighbors[bestIndex.j]);
                 if (game.attack(1)) {
                     game.handleTerritorySelection(this.territories[bestIndex.i].neighbors[bestIndex.j], this.territories[bestIndex.i]);
-                    game.moveArmies(1);
+                    if (this.doWeOwnContinent(this.territories[bestIndex.i])) {
+                        game.moveArmies(0.5);
+                    } else {
+                        game.moveArmies(1);
+                    }
                 }
             }
         }
@@ -238,17 +245,22 @@ var AI = (function (_super) {
     AI.prototype.moveArmiesToGoalContinent = function (game) {
         for (var i = 0; i < this.territories.length; i++) {
             if (this.territories[i].continentIndex !== this.goalContinent.index) {
-                if (this.doWeOwnContinent(this.territories[i]) !== true) {
-                    if (this.territories[i].armyCount > 1) {
-                        for (var j = 0; j < this.territories[i].neighbors.length; j++) {
-                            if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
-                                if (this.territories[i].continentBorder !== true) {
-                                    game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
-                                    if (this.territories[i].neighbors[j].owner === this.index) {
-                                        game.moveArmies(1);
-                                    } else {
-                                        game.attack(1);
-                                    }
+                if (this.territories[i].armyCount > 1) {
+                    for (var j = 0; j < this.territories[i].neighbors.length; j++) {
+                        if (this.territories[i].neighbors[j].continentIndex === this.goalContinent.index) {
+                            if (this.territories[i].continentBorder) {
+                                var numToMove = this.territories[i].armyCount - 20;
+                                if (numToMove < 0)
+                                    numToMove = 0;
+                            } else {
+                                numToMove = this.territories[i].armyCount;
+                            }
+                            if (numToMove > 0) {
+                                game.handleTerritorySelection(this.territories[i], this.territories[i].neighbors[j]);
+                                if (this.territories[i].neighbors[j].owner === this.index) {
+                                    game.moveArmies(numToMove);
+                                } else {
+                                    game.attack(1);
                                 }
                             }
                         }
@@ -307,18 +319,20 @@ var AI = (function (_super) {
     };
 
     AI.prototype.conquerContinentIfApplicable = function (game) {
-        while (this.conquerTerritoryInGoalContinent(game))
+        while (this.conquerTerritoryInContinent(game, this.goalContinent.index))
             ;
     };
 
     //super super inefficient but just trying to finish
-    AI.prototype.conquerTerritoryInGoalContinent = function (game) {
+    AI.prototype.conquerTerritoryInContinent = function (game, continentIndex) {
         var myArmyCount = 0, enemyArmyCount = 0;
-        for (var i = 0; i < this.goalContinent.territories.length; i++) {
-            if (this.goalContinent.territories[i].owner === this.index) {
-                myArmyCount += this.goalContinent.territories[i].armyCount;
+
+        var continent = game.map.continents[continentIndex];
+        for (var i = 0; i < continent.territories.length; i++) {
+            if (continent.territories[i].owner === this.index) {
+                myArmyCount += continent.territories[i].armyCount;
             } else {
-                enemyArmyCount += this.goalContinent.territories[i].armyCount;
+                enemyArmyCount += continent.territories[i].armyCount;
             }
         }
 
@@ -327,11 +341,11 @@ var AI = (function (_super) {
         }
 
         if (myArmyCount > enemyArmyCount * 1.5) {
-            for (var i = 0; i < this.goalContinent.territories.length; i++) {
-                var territory = this.goalContinent.territories[i];
+            for (var i = 0; i < continent.territories.length; i++) {
+                var territory = continent.territories[i];
                 if (territory.owner === this.index) {
                     for (var j = 0; j < territory.neighbors.length; j++) {
-                        if (territory.neighbors[j].continentIndex === this.goalContinent.index) {
+                        if (territory.neighbors[j].continentIndex === continent.index) {
                             if (territory.neighbors[j].owner !== this.index) {
                                 game.handleTerritorySelection(territory, territory.neighbors[j]);
                                 if (game.attack(1)) {
@@ -345,32 +359,21 @@ var AI = (function (_super) {
             }
 
             var bestIndex = -1, best = 0;
-            for (var i = 0; i < this.goalContinent.territories.length; i++) {
-                if (this.goalContinent.territories[i].owner === this.index) {
-                    if (this.goalContinent.territories[i].armyCount > best) {
-                        best = this.goalContinent.territories[i].armyCount;
-                        bestIndex = this.goalContinent.territories[i].index;
+            for (var i = 0; i < continent.territories.length; i++) {
+                if (continent.territories[i].owner === this.index) {
+                    if (continent.territories[i].armyCount > best) {
+                        best = continent.territories[i].armyCount;
+                        bestIndex = continent.territories[i].index;
                     }
                 }
             }
             if (bestIndex !== -1) {
                 console.log('we try');
-                for (var i = 0; i < this.goalContinent.territories.length; i++) {
-                    if (this.goalContinent.territories[i].owner !== this.index) {
-                        var path = game.pathfinder.findPath(game.map.territories[bestIndex], this.goalContinent.territories[i]);
-                        while (true) {
-                            var a = path.territories[0];
-                            var b = path.territories[1];
-                            game.handleTerritorySelection(a, b);
-                            if (game.attack(1)) {
-                                path.territories.shift();
-                                if (path.territories.length <= 1) {
-                                    return true;
-                                }
-                            } else {
-                                return false;
-                            }
-                        }
+                for (var i = 0; i < continent.territories.length; i++) {
+                    if (continent.territories[i].owner !== this.index) {
+                        var path = game.pathfinder.findPath(game.map.territories[bestIndex], continent.territories[i]);
+                        var result = this.moveArmyThroughPath(game, path);
+                        return result;
                     }
                 }
             }
@@ -423,6 +426,106 @@ var AI = (function (_super) {
                 }
             }
         }
+    };
+
+    AI.prototype.moveArmyThroughPath = function (game, path) {
+        var success = false;
+        console.log(path);
+        while (true) {
+            var a = path.territories[0];
+            var b = path.territories[1];
+            if (a.armyCount > 1) {
+                game.handleTerritorySelection(a, b);
+                if (b.owner === this.index) {
+                    game.moveArmies(1);
+                    success = true;
+                } else if (game.attack(1)) {
+                    success = true;
+                } else {
+                    success = false;
+                }
+
+                if (success) {
+                    path.territories.shift();
+                    if (path.territories.length <= 1) {
+                        return true;
+                    }
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+    };
+
+    AI.prototype.attemptToCaptureNeighboringContinentForFun = function (game) {
+        if (getRand(0, 100) > 0) {
+            for (var i = 0; i < game.map.continents.length; i++) {
+                if (this.doWeOwnContinent(game.map.continents[i].territories[0])) {
+                    var aStats = this.getContinentalArmyCount(game.map.continents[i], this.index, true);
+
+                    //need to change this so its targetting neighbor continent
+                    var targetIndex = i;
+                    while (targetIndex === i) {
+                        targetIndex = getRand(0, game.map.continents.length - 1);
+                    }
+
+                    if (this.doWeOwnContinent(game.map.continents[targetIndex].territories[0]) !== true) {
+                        var bStats = this.getContinentalArmyCount(game.map.continents[targetIndex], this.index, false);
+                        if (aStats.bestIndex !== -1) {
+                            if (aStats.count > bStats.count) {
+                                var neighbor = game.map.continents[targetIndex].territories[0];
+                                var path = game.pathfinder.findPath(game.map.territories[aStats.bestIndex], neighbor);
+                                var result = this.moveArmyThroughPath(game, path);
+                                if (result) {
+                                    while (this.conquerTerritoryInContinent(game, game.map.continents[targetIndex].index)) {
+                                        console.log('jolly');
+                                    }
+                                    ;
+                                    return;
+                                }
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    AI.prototype.getContinentalArmyCount = function (continent, nation, includeNationInCount) {
+        var totalContinentCount = 0, bestIndex = -1, best = 0;
+        for (var i = 0; i < continent.territories.length; i++) {
+            if (includeNationInCount) {
+                if (continent.territories[i].owner === nation) {
+                    totalContinentCount += 1;
+
+                    if (continent.territories[i].armyCount > best) {
+                        best = continent.territories[i].armyCount;
+                        bestIndex = continent.territories[i].index;
+                    }
+                } else {
+                    if (continent.territories[i].owner !== nation) {
+                        totalContinentCount += 1;
+
+                        if (continent.territories[i].armyCount > best) {
+                            best = continent.territories[i].armyCount;
+                            bestIndex = continent.territories[i].index;
+                        }
+                    }
+                }
+            }
+        }
+        return { count: totalContinentCount, bestIndex: bestIndex };
+    };
+
+    //would be nice to have
+    AI.prototype.killAnyOpponentWeCan = function (game) {
+    };
+
+    //would be nice to have (attempt to cripple enemy income)
+    AI.prototype.captureTerritoryInEnemyOwnedContinent = function (game) {
     };
     return AI;
 })(Nation);

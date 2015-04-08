@@ -452,7 +452,7 @@ class Game {
         text += ", Green: " + this.nations[0].cards[2].toString();
         text += " (1 of each card:  +15 income.  3 of a kind:  +7 income.  See help below)"
         
-        document.getElementById("card-display").innerHTML = text;
+        document.getElementById("output-text").innerHTML += text;
     }
 
     private calculateIncome(nation: Nation) {
