@@ -1,5 +1,3 @@
 # Risk
 
-Simple version of the board game Risk.  I'm mostly making this to learn Typescript.
-
-http://www.danieljosephpetersen.com/projects/risk/demo.html
+Simple version of the board game Risk, made back in 2015 to try out Typescript. AI is not great.
